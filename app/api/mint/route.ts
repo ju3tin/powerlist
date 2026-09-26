@@ -6,24 +6,12 @@ import axios from "axios";
 
 const pinata = new PinataSDK({ pinataJwt: process.env.PINATA_JWT! });
 
-// Fuji Testnet
-const provider = new ethers.JsonRpcProvider(
-  process.env.RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc"
-);
-const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
-
 const abi = [
   "function mintTo(address to, string name, string tokenURI, string hash) external returns (uint256)",
   "function isHashUsed(string hash) view returns (bool)",
   "function hasNFT(address account) view returns (bool)",
   "function remainingSupply() view returns (uint256)",
 ];
-
-const contract = new ethers.Contract(
-  process.env.NFT_CONTRACT_ADDRESS!,
-  abi,
-  wallet
-);
 
 function cleanLinkedInUrl(url: string) {
   if (!url) return "";
@@ -32,6 +20,17 @@ function cleanLinkedInUrl(url: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Create provider + wallet + contract ONLY when the API is called
+    const provider = new ethers.JsonRpcProvider(
+      process.env.RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc"
+    );
+    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+    const contract = new ethers.Contract(
+      process.env.NFT_CONTRACT_ADDRESS!,
+      abi,
+      wallet
+    );
+
     const session = await auth();
     if (!session?.linkedinUrl) {
       return NextResponse.json(
