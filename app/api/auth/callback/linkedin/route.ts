@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         grant_type: "authorization_code",
         code: code,
         redirect_uri: "https://powerlist-nine.vercel.app/api/auth/callback/linkedin", // ← MUST be exact
-        clientId: process.env.AUTH_LINKEDIN_ID!,
+        client_id: process.env.AUTH_LINKEDIN_ID!,
         clientSecret: process.env.AUTH_LINKEDIN_SECRET!,
       }),
       {
