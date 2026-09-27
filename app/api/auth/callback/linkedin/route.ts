@@ -1,3 +1,6 @@
+// app/api/auth/callback/linkedin/route.ts
+// or whatever path you are using
+
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
@@ -6,91 +9,66 @@ export async function GET(req: NextRequest) {
   const error = req.nextUrl.searchParams.get("error");
 
   if (error || !code) {
+    console.error("LinkedIn error param:", error);
     return NextResponse.redirect(new URL("/?error=linkedin_auth_failed", req.url));
   }
 
   try {
-    // 1. Exchange code for access token
+    // 1. Exchange code → access token
     const tokenRes = await axios.post(
       "https://www.linkedin.com/oauth/v2/accessToken",
       new URLSearchParams({
         grant_type: "authorization_code",
-        code,
-        redirect_uri: process.env.LINKEDIN_REDIRECT_URI!, // must match exactly what you registered
+        code: code,
+        redirect_uri: "https://powerlist-nine.vercel.app/api/auth/callback/linkedin", // ← MUST be exact
         clientId: process.env.AUTH_LINKEDIN_ID!,
         clientSecret: process.env.AUTH_LINKEDIN_SECRET!,
       }),
       {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
       }
     );
 
     const accessToken = tokenRes.data.access_token;
 
-    // 2. Get basic profile
+    // 2. Get user info (OpenID)
     const profileRes = await axios.get("https://api.linkedin.com/v2/userinfo", {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
-    // userinfo returns: sub, name, email, picture, etc.
-    // But we need the public LinkedIn profile URL
+    const profile = profileRes.data;
+    console.log("LinkedIn profile:", profile);
 
-    // 3. Get the public profile URL (vanity name)
-    // Note: LinkedIn restricted some fields. The most reliable way now is:
-    const meRes = await axios.get(
-      "https://api.linkedin.com/v2/me?projection=(id,vanityName,localizedFirstName,localizedLastName)",
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
-    );
+    // LinkedIn OpenID does NOT give you the public profile URL directly.
+    // We only get: sub, name, email, picture, given_name, family_name, locale, etc.
 
-    const vanityName = meRes.data.vanityName;
-    const linkedinUrl = vanityName
-      ? `https://www.linkedin.com/in/${vanityName}`
-      : null;
+    // For matching against your API we will use the email or name for now,
+    // or you can ask the user to confirm their LinkedIn URL later.
 
-    if (!linkedinUrl) {
-      return NextResponse.redirect(
-        new URL("/?error=no_linkedin_url", req.url)
-      );
-    }
-
-    // 4. Check if this person exists in your Innovate Finance API
-    const apiRes = await axios.get(process.env.INNOVATE_API_URL!);
-    const people = apiRes.data.data || apiRes.data;
-
-    const clean = (url: string) =>
-      url.toLowerCase().replace(/\/$/, "").split("?")[0];
-
-    const matchedPerson = people.find((p: any) => {
-      if (!p.social_icons) return false;
-      return p.social_icons.some((icon: any) => {
-        if (icon.icon_type !== "linkedin") return false;
-        return clean(icon.social_network_url) === clean(linkedinUrl);
-      });
-    });
-
-    if (!matchedPerson) {
-      // User is not on the list
-      return NextResponse.redirect(
-        new URL("/?error=not_on_list", req.url)
-      );
-    }
-
-    // 5. Success → create a session / JWT / cookie
-    // Example using a simple cookie (replace with NextAuth / your auth system)
+    // Temporary: save what we have
     const response = NextResponse.redirect(new URL("/mint", req.url));
 
-    response.cookies.set("linkedin_url", linkedinUrl, {
+    response.cookies.set("linkedin_sub", profile.sub, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24, // 1 day
+      secure: true,
+      maxAge: 60 * 60 * 24,
       path: "/",
     });
 
-    response.cookies.set("person_id", matchedPerson.id.toString(), {
+    response.cookies.set("linkedin_name", profile.name || "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
+      maxAge: 60 * 60 * 24,
+      path: "/",
+    });
+
+    response.cookies.set("linkedin_email", profile.email || "", {
+      httpOnly: true,
+      secure: true,
       maxAge: 60 * 60 * 24,
       path: "/",
     });
@@ -98,8 +76,6 @@ export async function GET(req: NextRequest) {
     return response;
   } catch (err: any) {
     console.error("LinkedIn callback error:", err.response?.data || err.message);
-    return NextResponse.redirect(
-      new URL("/?error=linkedin_failed", req.url)
-    );
+    return NextResponse.redirect(new URL("/?error=linkedin_failed", req.url));
   }
 }
