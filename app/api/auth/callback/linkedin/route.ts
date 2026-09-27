@@ -2,20 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
 export async function GET(req: NextRequest) {
-  const state = req.nextUrl.searchParams.get("state");
+  const code = req.nextUrl.searchParams.get("code");
   const error = req.nextUrl.searchParams.get("error");
 
-  if (error || !state) {
+  if (error || !code) {
     return NextResponse.redirect(new URL("/?error=linkedin_auth_failed", req.url));
   }
 
   try {
-    // 1. Exchange state for access token
+    // 1. Exchange code for access token
     const tokenRes = await axios.post(
       "https://www.linkedin.com/oauth/v2/accessToken",
       new URLSearchParams({
         grant_type: "authorization_code",
-        state,
+        code,
         redirect_uri: process.env.LINKEDIN_REDIRECT_URI!, // must match exactly what you registered
         clientId: process.env.AUTH_LINKEDIN_ID!,
         clientSecret: process.env.AUTH_LINKEDIN_SECRET!,
