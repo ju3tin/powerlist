@@ -40,12 +40,36 @@ export default function ProfilesPage() {
   const [selected, setSelected] = useState<Profile | null>(null);
   const [form, setForm] = useState<Partial<Profile>>({});
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [filterMissing, setFilterMissing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
-    const res = await fetch("/api/profiles");
-    const data = await res.json();
-    setProfiles(data);
+    setFetching(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/profiles");
+      if (!res.ok) throw new Error(`Failed to load profiles (${res.status})`);
+
+      const data = await res.json();
+
+      // Always force an array – this prevents the .map crash
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.profiles)
+          ? data.profiles
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
+
+      setProfiles(list);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Failed to load profiles");
+      setProfiles([]); // keep it an array
+    } finally {
+      setFetching(false);
+    }
   };
 
   useEffect(() => {
@@ -69,7 +93,7 @@ export default function ProfilesPage() {
       if (!res.ok) throw new Error("Save failed");
       await load();
       setSelected(null);
-    } catch (e) {
+    } catch {
       alert("Error saving profile");
     } finally {
       setLoading(false);
@@ -79,18 +103,35 @@ export default function ProfilesPage() {
   const hasMissing = (p: Profile) =>
     IMPORTANT_FIELDS.some((f) => {
       const val = p[f];
-      return val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0);
+      return (
+        val === undefined ||
+        val === null ||
+        val === "" ||
+        (Array.isArray(val) && val.length === 0)
+      );
     });
 
-  const displayed = filterMissing ? profiles.filter(hasMissing) : profiles;
+  // Always an array
+  const displayed = filterMissing
+    ? profiles.filter(hasMissing)
+    : profiles;
 
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/profiles" className="font-semibold text-lg">Profile Manager</Link>
-          <Link href="/profiles" className="text-sm text-blue-600 font-medium">Profiles</Link>
-          <Link href="/upload" className="text-sm text-gray-600 hover:text-blue-600">Upload JSON</Link>
+          <Link href="/profiles" className="font-semibold text-lg">
+            Profile Manager
+          </Link>
+          <Link href="/profiles" className="text-sm text-blue-600 font-medium">
+            Profiles
+          </Link>
+          <Link
+            href="/upload"
+            className="text-sm text-gray-600 hover:text-blue-600"
+          >
+            Upload JSON
+          </Link>
         </div>
         <button
           onClick={() => {
@@ -117,38 +158,59 @@ export default function ProfilesPage() {
           </label>
         </div>
 
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* List */}
           <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
             <div className="bg-gray-50 px-4 py-3 font-medium border-b">
-              {displayed.length} profiles
+              {fetching ? "Loading…" : `${displayed.length} profiles`}
             </div>
+
             <ul className="divide-y max-h-[75vh] overflow-y-auto">
-              {displayed.map((p) => (
-                <li
-                  key={p._id}
-                  onClick={() => openEditor(p)}
-                  className={`px-4 py-3 cursor-pointer hover:bg-blue-50 flex justify-between items-center
-                    ${hasMissing(p) ? "bg-amber-50" : ""}`}
-                >
-                  <div>
-                    <div className="font-medium">{p.title}</div>
-                    <div className="text-sm text-gray-500">{p.artist_title || "— no title"}</div>
-                  </div>
-                  {hasMissing(p) && (
-                    <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded">
-                      missing data
-                    </span>
-                  )}
+              {fetching ? (
+                <li className="px-4 py-8 text-center text-gray-500">
+                  Loading profiles…
                 </li>
-              ))}
+              ) : displayed.length === 0 ? (
+                <li className="px-4 py-8 text-center text-gray-500">
+                  No profiles found
+                </li>
+              ) : (
+                displayed.map((p) => (
+                  <li
+                    key={p._id}
+                    onClick={() => openEditor(p)}
+                    className={`px-4 py-3 cursor-pointer hover:bg-blue-50 flex justify-between items-center
+                      ${hasMissing(p) ? "bg-amber-50" : ""}`}
+                  >
+                    <div>
+                      <div className="font-medium">{p.title}</div>
+                      <div className="text-sm text-gray-500">
+                        {p.artist_title || "— no title"}
+                      </div>
+                    </div>
+                    {hasMissing(p) && (
+                      <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded">
+                        missing data
+                      </span>
+                    )}
+                  </li>
+                ))
+              )}
             </ul>
           </div>
 
           {/* Editor */}
           {selected && (
             <div className="border rounded-xl p-6 space-y-4 bg-white shadow-sm sticky top-6 self-start">
-              <h2 className="text-lg font-semibold">Editing: {selected.title}</h2>
+              <h2 className="text-lg font-semibold">
+                Editing: {selected.title}
+              </h2>
 
               {[
                 "title",
@@ -180,7 +242,9 @@ export default function ProfilesPage() {
               ))}
 
               <div>
-                <label className="block text-sm font-medium mb-1">content (HTML)</label>
+                <label className="block text-sm font-medium mb-1">
+                  content (HTML)
+                </label>
                 <textarea
                   rows={5}
                   className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -192,7 +256,9 @@ export default function ProfilesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">social_icons (JSON)</label>
+                <label className="block text-sm font-medium mb-1">
+                  social_icons (JSON)
+                </label>
                 <textarea
                   rows={4}
                   className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
