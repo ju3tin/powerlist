@@ -48,7 +48,7 @@ export default function ProfilesPage() {
     setFetching(true);
     setError(null);
     try {
-      const res = await fetch("/api/profiles");
+      const res = await fetch("/api/allprofiles");
       if (!res.ok) throw new Error(`Failed to load profiles (${res.status})`);
 
       const data = await res.json();
