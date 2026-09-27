@@ -8,6 +8,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.AUTH_LINKEDIN_SECRET,
       authorization: {
         params: {
+            redirectUri: process.env.LINKEDIN_REDIRECT_URI,
           scope: "openid profile email",
         },
       },
