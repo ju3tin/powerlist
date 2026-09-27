@@ -1,6 +1,3 @@
-// app/api/auth/callback/linkedin/route.ts
-// or whatever path you are using
-
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 
@@ -9,21 +6,25 @@ export async function GET(req: NextRequest) {
   const error = req.nextUrl.searchParams.get("error");
 
   if (error || !code) {
-    console.error("LinkedIn error param:", error);
+    console.error("LinkedIn auth error:", error);
     return NextResponse.redirect(new URL("/?error=linkedin_auth_failed", req.url));
   }
 
   try {
-    // 1. Exchange code → access token
+    // 1. Exchange code for access token
+    const params = new URLSearchParams();
+    params.append("grant_type", "authorization_code");
+    params.append("code", code);
+    params.append(
+      "redirect_uri",
+      "https://powerlist-nine.vercel.app/api/auth/callback/linkedin"
+    );
+    params.append("client_id", process.env.LINKEDIN_CLIENT_ID as string);
+    params.append("client_secret", process.env.LINKEDIN_CLIENT_SECRET as string);
+
     const tokenRes = await axios.post(
       "https://www.linkedin.com/oauth/v2/accessToken",
-      new URLSearchParams({
-        grant_type: "authorization_code",
-        code: code,
-        redirect_uri: "https://powerlist-nine.vercel.app/api/auth/callback/linkedin", // ← MUST be exact
-        client_id: process.env.AUTH_LINKEDIN_ID!,
-        client_secret: process.env.AUTH_LINKEDIN_SECRET!,
-      }),
+      params.toString(),
       {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     const accessToken = tokenRes.data.access_token;
 
-    // 2. Get user info (OpenID)
+    // 2. Get basic profile (OpenID)
     const profileRes = await axios.get("https://api.linkedin.com/v2/userinfo", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -41,21 +42,45 @@ export async function GET(req: NextRequest) {
     });
 
     const profile = profileRes.data;
-    console.log("LinkedIn profile:", profile);
 
-    // LinkedIn OpenID does NOT give you the public profile URL directly.
-    // We only get: sub, name, email, picture, given_name, family_name, locale, etc.
+    // 3. Try to get vanityName (public profile URL)
+    let linkedinUrl: string | null = null;
 
-    // For matching against your API we will use the email or name for now,
-    // or you can ask the user to confirm their LinkedIn URL later.
+    try {
+      const meRes = await axios.get(
+        "https://api.linkedin.com/v2/me?projection=(id,vanityName)",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
 
-    // Temporary: save what we have
-    const response = NextResponse.redirect(new URL("/mint", req.url));
+      if (meRes.data?.vanityName) {
+        linkedinUrl = `https://www.linkedin.com/in/${meRes.data.vanityName}`;
+        console.log("Successfully got LinkedIn URL:", linkedinUrl);
+      } else {
+        console.log("vanityName is missing in response:", meRes.data);
+      }
+    } catch (vanityError: any) {
+      // LinkedIn often blocks this endpoint now
+      console.warn(
+        "Could not fetch vanityName:",
+        vanityError.response?.data || vanityError.message
+      );
+      // We continue without linkedinUrl
+    }
 
+    // 4. Decide where to send the user
+    const redirectTo = linkedinUrl ? "/mint" : "/confirm-linkedin";
+
+    const response = NextResponse.redirect(new URL(redirectTo, req.url));
+
+    // Save basic LinkedIn data
     response.cookies.set("linkedin_sub", profile.sub, {
       httpOnly: true,
       secure: true,
-      maxAge: 60 * 60 * 24,
+      maxAge: 60 * 60 * 24, // 1 day
       path: "/",
     });
 
@@ -72,6 +97,16 @@ export async function GET(req: NextRequest) {
       maxAge: 60 * 60 * 24,
       path: "/",
     });
+
+    // Only set linkedin_url if we successfully got it
+    if (linkedinUrl) {
+      response.cookies.set("linkedin_url", linkedinUrl, {
+        httpOnly: true,
+        secure: true,
+        maxAge: 60 * 60 * 24,
+        path: "/",
+      });
+    }
 
     return response;
   } catch (err: any) {
