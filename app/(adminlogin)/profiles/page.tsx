@@ -127,6 +127,12 @@ export default function ProfilesPage() {
             Profiles
           </Link>
           <Link
+            href="/profiles/new"
+            className="text-sm text-gray-600 hover:text-blue-600"
+          >
+            New Profile
+          </Link>
+          <Link
             href="/upload"
             className="text-sm text-gray-600 hover:text-blue-600"
           >

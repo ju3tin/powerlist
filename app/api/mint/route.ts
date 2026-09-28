@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     const imageFile = new File([imageBuffer], `${hash}.jpg`, {
       type: "image/jpeg",
     });
-    const imageUpload = await pinata.upload.file(imageFile);
+    const imageUpload = await pinata.upload.public.file(imageFile);
     const imageCid = imageUpload.cid;
 
     // Create metadata
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
       external_url: person.link || "",
     };
 
-    const metadataUpload = await pinata.upload.json(metadata);
+    const metadataUpload = await pinata.upload.public.json(metadata);
     const tokenURI = `ipfs://${metadataUpload.cid}`;
 
     // Mint on Fuji
