@@ -59,6 +59,25 @@ export async function GET(req: NextRequest) {
       path: "/",
     });
 
+    response.cookies.set("linkedin_picture", profile.picture || "", {
+      httpOnly: true,
+      secure: true,
+      maxAge: 60 * 60 * 24,
+      path: "/",
+    });
+    response.cookies.set("linkedin_first_name", profile.given_name || "", {
+      httpOnly: true,
+      secure: true,
+      maxAge: 60 * 60 * 24,
+      path: "/",
+    });
+    response.cookies.set("linkedin_last_name", profile.family_name || "", {
+      httpOnly: true,
+      secure: true,
+      maxAge: 60 * 60 * 24,
+      path: "/",
+    });
+    
     response.cookies.set("linkedin_name", profile.name || "", {
       httpOnly: true,
       secure: true,
