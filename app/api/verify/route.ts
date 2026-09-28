@@ -1,57 +1,46 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-interface SocialIcon {
-  icon_type?: string;
-  social_network_url?: string;
-}
-
 interface Profile {
   _id?: string;
   id: number;
   title: string;
   artist_title?: string;
   featured_image?: string;
-  social_icons?: SocialIcon[];
-}
-
-function normalizeLinkedInUrl(url: string) {
-  return url
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .replace(/^www\./, "")
-    .replace(/\/$/, "");
+  social_icons?: {
+    icon_type?: string;
+    social_network_url?: string;
+  }[];
 }
 
 /*
- * Extract the last name from a profile title.
+ * Clean a name before comparing it.
  *
- * Examples:
+ * "Aadit Gandhi"
+ * "aadit gandhi"
  *
- * "Abby Thomas"       -> "thomas"
- * "Aadit Gandhi"      -> "gandhi"
- * "John Smith Jones"  -> "jones"
+ * become the same value.
  */
-function getLastName(name: string) {
-  const cleaned = name
+function normalizeName(name: string) {
+  return name
     .trim()
-    .replace(/\s+/g, " ");
-
-  const parts = cleaned.split(" ");
-
-  return parts[parts.length - 1]
-    .replace(/[^a-zA-ZÀ-ÿ'-]/g, "")
+    .replace(/\s+/g, " ")
     .toLowerCase();
 }
 
+/*
+ * Get the profiles from /api/profiles.
+ */
 async function getProfiles(): Promise<Profile[]> {
   const baseUrl =
     process.env.NEXTAUTH_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     "http://localhost:3000";
 
-  console.log("📡 Fetching profiles from:", baseUrl);
+  console.log(
+    "📡 Fetching profiles from:",
+    baseUrl
+  );
 
   const response = await fetch(
     `${baseUrl}/api/profiles`,
@@ -91,42 +80,54 @@ async function getProfiles(): Promise<Profile[]> {
 
 export async function POST(req: Request) {
   console.log("");
-  console.log("==========================================");
-  console.log("🔍 /api/verify");
-  console.log("==========================================");
+  console.log(
+    "=========================================="
+  );
+  console.log(
+    "🔍 /api/verify"
+  );
+  console.log(
+    "=========================================="
+  );
 
   try {
     /*
      * ==========================================
-     * READ LINKEDIN LAST NAME COOKIE
+     * READ COOKIES
      * ==========================================
      */
 
     const cookieStore = await cookies();
 
-    const linkedinLastNameCookie =
+    const firstNameCookie =
+      cookieStore.get(
+        "linkedin_first_name"
+      );
+
+    const lastNameCookie =
       cookieStore.get(
         "linkedin_last_name"
       );
 
-    const linkedinLastName =
-      linkedinLastNameCookie?.value
-        ?.trim()
-        .toLowerCase();
-
+    /*
+     * We don't log the actual cookie values.
+     */
     console.log(
-      "🍪 linkedin_last_name cookie exists:",
-      Boolean(linkedinLastNameCookie)
+      "🍪 linkedin_first_name exists:",
+      Boolean(firstNameCookie)
     );
 
-    /*
-     * DO NOT log the actual cookie value in production.
-     *
-     * We log only whether it exists.
-     */
-    if (!linkedinLastName) {
+    console.log(
+      "🍪 linkedin_last_name exists:",
+      Boolean(lastNameCookie)
+    );
+
+    if (
+      !firstNameCookie?.value ||
+      !lastNameCookie?.value
+    ) {
       console.error(
-        "❌ linkedin_last_name cookie missing"
+        "❌ LinkedIn name cookies missing"
       );
 
       return NextResponse.json(
@@ -134,48 +135,73 @@ export async function POST(req: Request) {
           success: false,
           verified: false,
           error:
-            "LinkedIn last name cookie was not found. Please login with LinkedIn again.",
+            "LinkedIn name information was not found. Please login with LinkedIn again.",
         },
-        { status: 401 }
+        {
+          status: 401,
+        }
       );
     }
+
+    /*
+     * ==========================================
+     * GET LINKEDIN NAME
+     * ==========================================
+     */
+
+    const linkedinFirstName =
+      firstNameCookie.value
+        .trim();
+
+    const linkedinLastName =
+      lastNameCookie.value
+        .trim();
+
+    const linkedinFullName =
+      `${linkedinFirstName} ${linkedinLastName}`
+        .trim();
+
+    const normalizedLinkedInName =
+      normalizeName(
+        linkedinFullName
+      );
+
+    console.log(
+      "👤 LinkedIn full name:",
+      linkedinFullName
+    );
+
+    console.log(
+      "🔎 Normalized LinkedIn name:",
+      normalizedLinkedInName
+    );
 
     /*
      * ==========================================
      * READ REQUEST
      * ==========================================
+     *
+     * LinkedIn URL is no longer needed for
+     * matching.
+     *
+     * We accept it so the frontend can still
+     * send/store/display it if required.
      */
 
-    const body = await req.json();
+    let body: any = {};
 
-    const linkedinUrl =
-      typeof body?.linkedinUrl === "string"
-        ? body.linkedinUrl.trim()
-        : "";
-
-    if (!linkedinUrl) {
-      console.error(
-        "❌ No LinkedIn URL supplied"
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-          verified: false,
-          error:
-            "LinkedIn profile URL is required.",
-        },
-        { status: 400 }
-      );
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
     }
 
-    const normalizedInputUrl =
-      normalizeLinkedInUrl(linkedinUrl);
-
-    console.log(
-      "🔗 Normalized LinkedIn URL:",
-      normalizedInputUrl
-    );
+    if (body?.linkedinUrl) {
+      console.log(
+        "🔗 LinkedIn URL supplied:",
+        body.linkedinUrl
+      );
+    }
 
     /*
      * ==========================================
@@ -183,7 +209,8 @@ export async function POST(req: Request) {
      * ==========================================
      */
 
-    const profiles = await getProfiles();
+    const profiles =
+      await getProfiles();
 
     console.log(
       "📊 Profiles received:",
@@ -192,67 +219,41 @@ export async function POST(req: Request) {
 
     /*
      * ==========================================
-     * FIND MATCH
+     * MATCH NAME
      * ==========================================
      */
 
-    let matchedProfile: Profile | null =
-      null;
+    let matchedProfile:
+      | Profile
+      | null = null;
 
     for (const profile of profiles) {
       if (!profile?.title) {
         continue;
       }
 
-      const profileLastName =
-        getLastName(profile.title);
-
-      const linkedinIcon =
-        profile.social_icons?.find(
-          (social) =>
-            social.icon_type
-              ?.trim()
-              .toLowerCase() ===
-              "linkedin"
+      const normalizedProfileName =
+        normalizeName(
+          profile.title
         );
 
-      const profileLinkedInUrl =
-        linkedinIcon?.social_network_url
-          ? normalizeLinkedInUrl(
-              linkedinIcon.social_network_url
-            )
-          : "";
-
-      const lastNameMatches =
-        profileLastName ===
-        linkedinLastName;
-
-      const linkedinMatches =
-        profileLinkedInUrl ===
-        normalizedInputUrl;
+      const nameMatches =
+        normalizedProfileName ===
+        normalizedLinkedInName;
 
       console.log(
-        "Checking profile:",
+        "🔎 Checking:",
         profile.title,
-        {
-          lastNameMatches,
-          linkedinMatches,
-          hasLinkedIn:
-            Boolean(profileLinkedInUrl),
-        }
+        "| Match:",
+        nameMatches
       );
 
-      /*
-       * BOTH conditions must match.
-       */
-      if (
-        lastNameMatches &&
-        linkedinMatches
-      ) {
-        matchedProfile = profile;
+      if (nameMatches) {
+        matchedProfile =
+          profile;
 
         console.log(
-          "✅ MATCH FOUND:",
+          "✅ PROFILE MATCH FOUND:",
           profile.title
         );
 
@@ -268,7 +269,8 @@ export async function POST(req: Request) {
 
     if (!matchedProfile) {
       console.log(
-        "❌ No matching Powerlist profile"
+        "❌ No Powerlist profile matched:",
+        linkedinFullName
       );
 
       return NextResponse.json(
@@ -276,9 +278,11 @@ export async function POST(req: Request) {
           success: false,
           verified: false,
           error:
-            "We could not find a Powerlist profile matching your LinkedIn information.",
+            `No Innovate Finance Powerlist profile was found for ${linkedinFullName}.`,
         },
-        { status: 403 }
+        {
+          status: 403,
+        }
       );
     }
 
@@ -303,11 +307,9 @@ export async function POST(req: Request) {
       success: true,
       verified: true,
 
-      /*
-       * Return the surname for UI/debugging.
-       * Do not return the raw cookie.
-       */
+      linkedinFirstName,
       linkedinLastName,
+      linkedinFullName,
 
       profile: matchedProfile,
     });
@@ -325,7 +327,9 @@ export async function POST(req: Request) {
         error:
           "An error occurred while verifying your LinkedIn profile.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
