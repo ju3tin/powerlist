@@ -154,7 +154,7 @@ export default function TicketTestPage() {
       );
 
       const mintResponse =
-        await fetch("/api/mint2", {
+        await fetch("/api/mint5", {
           method: "POST",
           headers: {
             "Content-Type":
