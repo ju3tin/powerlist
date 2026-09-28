@@ -7,7 +7,7 @@ const name = "sd";
 const CONTRACT_ADDRESS = process.env.NFT_CONTRACT_ADDRESS as `0x${string}`;
 const PRIVATE_KEY123 = process.env.MINTER_PRIVATE_KEY as `0x${string}`;
 const RPC_URL =
-  process.env.AVALANCHE_RPC_URL ||
+  process.env.AVALANCHE_RPC_URL || 
   "https://api.avax-test.network/ext/bc/C/rpc";
 
 const publicClient = createPublicClient({
