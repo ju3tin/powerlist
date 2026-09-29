@@ -40,41 +40,57 @@ export default function ProfilesPage() {
   const [selected, setSelected] = useState<Profile | null>(null);
   const [form, setForm] = useState<Partial<Profile>>({});
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
-  const [filterMissing, setFilterMissing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    setFetching(true);
-    setError(null);
+  const [filterMissing, setFilterMissing] = useState(false);
+
+  // Search
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searching, setSearching] = useState(false);
+
+  const load = async (searchTerm = "") => {
     try {
-      const res = await fetch("/api/allprofiles");
-      if (!res.ok) throw new Error(`Failed to load profiles (${res.status})`);
+      setSearching(true);
+
+      const url = searchTerm.trim()
+        ? `/api/profiles2?search=${encodeURIComponent(searchTerm.trim())}`
+        : "/api/profiles2";
+
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        throw new Error("Failed to load profiles");
+      }
 
       const data = await res.json();
 
-      // Always force an array – this prevents the .map crash
-      const list = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.profiles)
-          ? data.profiles
-          : Array.isArray(data?.data)
-            ? data.data
-            : [];
-
-      setProfiles(list);
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Failed to load profiles");
-      setProfiles([]); // keep it an array
+      setProfiles(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load profiles:", error);
+      setProfiles([]);
     } finally {
-      setFetching(false);
+      setSearching(false);
     }
   };
 
   useEffect(() => {
     load();
   }, []);
+
+  // Search when the user submits the form
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setSearch(searchInput);
+    load(searchInput);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    load();
+  };
 
   const openEditor = (p: Profile) => {
     setSelected(p);
@@ -83,17 +99,31 @@ export default function ProfilesPage() {
 
   const save = async () => {
     if (!selected) return;
+
     setLoading(true);
+
     try {
       const res = await fetch("/api/profiles", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: selected._id, ...form }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          _id: selected._id,
+          ...form,
+        }),
       });
-      if (!res.ok) throw new Error("Save failed");
-      await load();
+
+      if (!res.ok) {
+        throw new Error("Save failed");
+      }
+
+      // Reload using current search
+      await load(search);
+
       setSelected(null);
-    } catch {
+    } catch (e) {
+      console.error(e);
       alert("Error saving profile");
     } finally {
       setLoading(false);
@@ -103,6 +133,7 @@ export default function ProfilesPage() {
   const hasMissing = (p: Profile) =>
     IMPORTANT_FIELDS.some((f) => {
       const val = p[f];
+
       return (
         val === undefined ||
         val === null ||
@@ -111,27 +142,29 @@ export default function ProfilesPage() {
       );
     });
 
-  // Always an array
   const displayed = filterMissing
     ? profiles.filter(hasMissing)
     : profiles;
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Navigation */}
       <nav className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/profiles" className="font-semibold text-lg">
+          <Link
+            href="/profiles"
+            className="font-semibold text-lg"
+          >
             Profile Manager
           </Link>
-          <Link href="/profiles" className="text-sm text-blue-600 font-medium">
+
+          <Link
+            href="/profiles"
+            className="text-sm text-blue-600 font-medium"
+          >
             Profiles
           </Link>
-          <Link
-            href="/profiles/new"
-            className="text-sm text-gray-600 hover:text-blue-600"
-          >
-            New Profile
-          </Link>
+
           <Link
             href="/upload"
             className="text-sm text-gray-600 hover:text-blue-600"
@@ -139,9 +172,12 @@ export default function ProfilesPage() {
             Upload JSON
           </Link>
         </div>
+
         <button
           onClick={() => {
-            document.cookie = "admin_token=; path=/; max-age=0";
+            document.cookie =
+              "admin_token=; path=/; max-age=0";
+
             window.location.href = "/login";
           }}
           className="text-sm text-red-600 hover:underline"
@@ -151,55 +187,134 @@ export default function ProfilesPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Profile Editor</h1>
+          <h1 className="text-2xl font-bold">
+            Profile Editor
+          </h1>
+
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input
               type="checkbox"
               checked={filterMissing}
-              onChange={(e) => setFilterMissing(e.target.checked)}
+              onChange={(e) =>
+                setFilterMissing(e.target.checked)
+              }
               className="rounded"
             />
+
             Show only profiles with missing fields
           </label>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-            {error}
-          </div>
-        )}
+        {/* Search */}
+        <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+          <form
+            onSubmit={handleSearch}
+            className="flex gap-3"
+          >
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) =>
+                  setSearchInput(e.target.value)
+                }
+                placeholder="Search profiles by name, job title, slug, category..."
+                className="w-full border rounded-lg px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
 
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={searching}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {searching ? "Searching..." : "Search"}
+            </button>
+
+            {search && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="border px-5 py-3 rounded-lg hover:bg-gray-50"
+              >
+                Clear
+              </button>
+            )}
+          </form>
+
+          {search && (
+            <div className="mt-3 text-sm text-gray-500">
+              Search results for{" "}
+              <span className="font-medium text-gray-800">
+                "{search}"
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Main content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* List */}
           <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
-            <div className="bg-gray-50 px-4 py-3 font-medium border-b">
-              {fetching ? "Loading…" : `${displayed.length} profiles`}
+            <div className="bg-gray-50 px-4 py-3 font-medium border-b flex justify-between">
+              <span>
+                {displayed.length}{" "}
+                {displayed.length === 1
+                  ? "profile"
+                  : "profiles"}
+              </span>
+
+              {searching && (
+                <span className="text-sm text-gray-500">
+                  Searching...
+                </span>
+              )}
             </div>
 
             <ul className="divide-y max-h-[75vh] overflow-y-auto">
-              {fetching ? (
-                <li className="px-4 py-8 text-center text-gray-500">
-                  Loading profiles…
-                </li>
-              ) : displayed.length === 0 ? (
-                <li className="px-4 py-8 text-center text-gray-500">
-                  No profiles found
+              {displayed.length === 0 ? (
+                <li className="px-4 py-10 text-center text-gray-500">
+                  {search
+                    ? `No profiles found for "${search}"`
+                    : "No profiles found"}
                 </li>
               ) : (
                 displayed.map((p) => (
                   <li
                     key={p._id}
                     onClick={() => openEditor(p)}
-                    className={`px-4 py-3 cursor-pointer hover:bg-blue-50 flex justify-between items-center
-                      ${hasMissing(p) ? "bg-amber-50" : ""}`}
+                    className={`px-4 py-3 cursor-pointer hover:bg-blue-50 flex justify-between items-center ${
+                      hasMissing(p)
+                        ? "bg-amber-50"
+                        : ""
+                    }`}
                   >
                     <div>
-                      <div className="font-medium">{p.title}</div>
+                      <div className="font-medium">
+                        {p.title}
+                      </div>
+
                       <div className="text-sm text-gray-500">
                         {p.artist_title || "— no title"}
                       </div>
+
+                      <div className="text-xs text-gray-400 mt-1">
+                        {p.slug}
+                      </div>
                     </div>
+
                     {hasMissing(p) && (
                       <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded">
                         missing data
@@ -233,61 +348,90 @@ export default function ProfilesPage() {
                 <div key={key}>
                   <label className="block text-sm font-medium mb-1 capitalize">
                     {key.replace(/_/g, " ")}
-                    {IMPORTANT_FIELDS.includes(key) && !form[key] && (
-                      <span className="ml-2 text-xs text-red-500">missing</span>
-                    )}
+
+                    {IMPORTANT_FIELDS.includes(key) &&
+                      !form[key] && (
+                        <span className="ml-2 text-xs text-red-500">
+                          missing
+                        </span>
+                      )}
                   </label>
+
                   <input
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={(form[key] as string) ?? ""}
                     onChange={(e) =>
-                      setForm((prev) => ({ ...prev, [key]: e.target.value }))
+                      setForm((prev) => ({
+                        ...prev,
+                        [key]: e.target.value,
+                      }))
                     }
                   />
                 </div>
               ))}
 
+              {/* Content */}
               <div>
                 <label className="block text-sm font-medium mb-1">
                   content (HTML)
                 </label>
+
                 <textarea
                   rows={5}
                   className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.content ?? ""}
                   onChange={(e) =>
-                    setForm((prev) => ({ ...prev, content: e.target.value }))
+                    setForm((prev) => ({
+                      ...prev,
+                      content: e.target.value,
+                    }))
                   }
                 />
               </div>
 
+              {/* Social icons */}
               <div>
                 <label className="block text-sm font-medium mb-1">
                   social_icons (JSON)
                 </label>
+
                 <textarea
                   rows={4}
                   className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={JSON.stringify(form.social_icons ?? [], null, 2)}
+                  value={JSON.stringify(
+                    form.social_icons ?? [],
+                    null,
+                    2
+                  )}
                   onChange={(e) => {
                     try {
-                      const parsed = JSON.parse(e.target.value);
-                      setForm((prev) => ({ ...prev, social_icons: parsed }));
+                      const parsed = JSON.parse(
+                        e.target.value
+                      );
+
+                      setForm((prev) => ({
+                        ...prev,
+                        social_icons: parsed,
+                      }));
                     } catch {
-                      // ignore while typing
+                      // Ignore invalid JSON while typing
                     }
                   }}
                 />
               </div>
 
+              {/* Buttons */}
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={save}
                   disabled={loading}
                   className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? "Saving…" : "Save changes"}
+                  {loading
+                    ? "Saving…"
+                    : "Save changes"}
                 </button>
+
                 <button
                   onClick={() => setSelected(null)}
                   className="border px-5 py-2 rounded-lg hover:bg-gray-50"
