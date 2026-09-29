@@ -355,36 +355,140 @@ export default function ProfilesPage() {
                 />
               </div>
 
-              {/* Social icons */}
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  social_icons (JSON)
+  <div className="flex items-center justify-between mb-2">
+    <label className="block text-sm font-medium">
+      Social icons
+    </label>
+
+    <button
+      type="button"
+      onClick={() => {
+        setForm((prev) => ({
+          ...prev,
+          social_icons: [
+            ...(prev.social_icons ?? []),
+            {
+              icon_type: "",
+              social_network_url: "",
+            },
+          ],
+        }));
+      }}
+      className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+    >
+      + Add social link
+    </button>
+  </div>
+
+  <div className="space-y-3">
+    {(form.social_icons ?? []).length === 0 ? (
+      <div className="border rounded-lg p-4 text-sm text-gray-500 bg-gray-50">
+        No social links added.
+      </div>
+    ) : (
+      (form.social_icons ?? []).map(
+        (social, index) => (
+          <div
+            key={index}
+            className="border rounded-lg p-4 bg-gray-50"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Icon type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Icon type
                 </label>
 
-                <textarea
-                  rows={4}
-                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={JSON.stringify(
-                    form.social_icons ?? [],
-                    null,
-                    2
-                  )}
+                <input
+                  type="text"
+                  value={
+                    social.icon_type ?? ""
+                  }
                   onChange={(e) => {
-                    try {
-                      const parsed = JSON.parse(
-                        e.target.value
-                      );
+                    setForm((prev) => {
+                      const socialIcons = [
+                        ...(prev.social_icons ?? []),
+                      ];
 
-                      setForm((prev) => ({
+                      socialIcons[index] = {
+                        ...socialIcons[index],
+                        icon_type:
+                          e.target.value,
+                      };
+
+                      return {
                         ...prev,
-                        social_icons: parsed,
-                      }));
-                    } catch {
-                      // Ignore invalid JSON while typing
-                    }
+                        social_icons:
+                          socialIcons,
+                      };
+                    });
                   }}
+                  placeholder="linkedin"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* URL */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Social network URL
+                </label>
+
+                <input
+                  type="url"
+                  value={
+                    social.social_network_url ??
+                    ""
+                  }
+                  onChange={(e) => {
+                    setForm((prev) => {
+                      const socialIcons = [
+                        ...(prev.social_icons ?? []),
+                      ];
+
+                      socialIcons[index] = {
+                        ...socialIcons[index],
+                        social_network_url:
+                          e.target.value,
+                      };
+
+                      return {
+                        ...prev,
+                        social_icons:
+                          socialIcons,
+                      };
+                    });
+                  }}
+                  placeholder="https://linkedin.com/in/..."
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Remove button */}
+            <button
+              type="button"
+              onClick={() => {
+                setForm((prev) => ({
+                  ...prev,
+                  social_icons: (
+                    prev.social_icons ?? []
+                  ).filter(
+                    (_, i) => i !== index
+                  ),
+                }));
+              }}
+              className="mt-3 text-sm text-red-600 hover:text-red-800 hover:underline"
+            >
+              Remove
+            </button>
+          </div>
+        )
+      )
+    )}
+  </div>
+</div>
 
               {/* Buttons */}
               <div className="flex gap-3 pt-4">

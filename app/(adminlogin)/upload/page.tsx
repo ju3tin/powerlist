@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import Link from "next/link";
+import AdminNav from "@/components/nav";
 
 export default function UploadPage() {
   const [status, setStatus] = useState<string | null>(null);
@@ -45,7 +46,7 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b px-6 py-4 flex items-center justify-between">
+      {/* <nav className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/profiles" className="font-semibold text-lg">Profile Manager</Link>
           <Link href="/profiles" className="text-sm text-gray-600 hover:text-blue-600">Profiles</Link>
@@ -60,8 +61,8 @@ export default function UploadPage() {
         >
           Logout
         </button>
-      </nav>
-
+      </nav> */}
+      <AdminNav />
       <div className="max-w-2xl mx-auto p-8">
         <h1 className="text-2xl font-bold mb-6">JSON Profile Uploader</h1>
 

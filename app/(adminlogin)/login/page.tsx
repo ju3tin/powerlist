@@ -29,7 +29,14 @@ export default function AdminLoginPage() {
         return;
       }
 
-      document.cookie = `admin_token=${data.token}; path=/; max-age=86400; SameSite=Lax`;
+      localStorage.setItem(
+  "admin",
+  JSON.stringify(data.admin)
+);
+
+router.push("/profiles");
+router.refresh();
+
       localStorage.setItem("admin", JSON.stringify(data.admin));
 
       router.push("/profiles");
