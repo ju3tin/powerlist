@@ -4,12 +4,13 @@ import Link from "next/link";
 
 
 export default function AdminNav() {
-  function handleLogout() {
-    document.cookie =
-      "admin_token=; path=/; max-age=0";
-
-    window.location.href = "/login";
-  }
+ 
+    function handleLogout() {
+        document.cookie =
+          "admin_token=; path=/; max-age=0";
+    
+        window.location.href = "/login";
+      }
 
   return (
     <nav className="bg-white border-b px-6 py-4 flex items-center justify-between">
@@ -41,13 +42,14 @@ export default function AdminNav() {
           Upload JSON
         </Link>
       </div>
-
+      <Link href='/api/auth/logout' passHref legacyBehavior>
+		
       <button
-        onClick={handleLogout}
         className="text-sm text-red-600 hover:underline"
       >
         Logout
       </button>
+      </Link>
     </nav>
   );
 }
