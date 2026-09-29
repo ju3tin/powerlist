@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     // or you can ask the user to confirm their LinkedIn URL later.
 
     // Temporary: save what we have
-    const response = NextResponse.redirect(new URL("/mint", req.url));
+    const response = NextResponse.redirect(new URL("/", req.url));
 
     response.cookies.set("linkedin_sub", profile.sub, {
       httpOnly: true,
