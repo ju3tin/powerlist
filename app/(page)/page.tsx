@@ -88,7 +88,7 @@ export default function Page() {
         </div>
       </header>
 
-      {isMenuOpen && <div className="absolute right-6 top-20 z-30 flex w-64 flex-col gap-4 rounded-2xl border border-[#dfe5eb] bg-white p-5 text-sm font-semibold shadow-xl md:hidden"><a href="#about" onClick={() => setIsMenuOpen(false)}>About the Powerlist</a><a href="#how-it-works" onClick={() => setIsMenuOpen(false)}>How it works</a><a href="#faq" onClick={() => setIsMenuOpen(false)}>FAQ</a><button onClick={() => { setIsMenuOpen(false); setIsSignInOpen(true) }} className="rounded-full bg-[#1e63f1] px-4 py-3 text-white">Sign in with LinkedIn</button></div>}
+      {isMenuOpen && <div className="absolute right-6 top-20 z-30 flex w-64 flex-col gap-4 rounded-2xl border border-[#dfe5eb] bg-white p-5 text-sm font-semibold shadow-xl md:hidden"><a href="#about" onClick={() => setIsMenuOpen(false)}>About the Powerlist</a><a href="#how-it-works" onClick={() => setIsMenuOpen(false)}>How it works</a><a href="#faq" onClick={() => setIsMenuOpen(false)}>FAQ</a><button onClick={handleLogin} className="rounded-full bg-[#1e63f1] px-4 py-3 text-white">Sign in with LinkedIn</button></div>}
 
       <section id="top" className="relative mx-auto grid max-w-[1280px] items-center gap-14 px-6 pb-24 pt-14 lg:grid-cols-[1.03fr_.97fr] lg:px-10 lg:pb-32 lg:pt-20">
         <div className="relative z-10">
