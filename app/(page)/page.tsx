@@ -32,6 +32,10 @@ export default function Page() {
   const [verifiedProfile, setVerifiedProfile] = useState<{ title: string; artist_title?: string; featured_image?: string } | null>(null)
   const [badgeClaimed, setBadgeClaimed] = useState(false)
 
+  const handleLogin = () => {
+    window.location.href = "/api/linkedin/login";
+  };
+
   function copyAddress() {
     navigator.clipboard?.writeText('0x4f8A...91c2')
     setIsCopied(true)
@@ -76,7 +80,7 @@ export default function Page() {
               {isCopied ? <Check className="size-4 text-[#45c87a]" /> : <Copy className="size-4 text-[#8a9bab]" />}
             </button>
           ) : (
-            <button onClick={() => setIsSignInOpen(true)} className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block">Sign in with LinkedIn</button>
+            <button onClick={handleLogin} className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block">Sign in with LinkedIn</button>
           )}
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="rounded-full border border-[#dfe5eb] bg-white p-2.5 md:hidden" aria-label="Toggle menu">
             {isMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
