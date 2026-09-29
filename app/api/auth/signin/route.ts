@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
       new URL("/", request.url)
     );
   }
+  // If the user is already logged in, redirect to the home page
 
   return NextResponse.redirect(
     new URL("/", request.url)
