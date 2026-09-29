@@ -80,7 +80,7 @@ export async function GET(req: Request) {
     const baseUrl =
       process.env.NEXTAUTH_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000";
+      "https://powerlist-nine.vercel.ap";
 
     console.log(
       "📡 Querying:",
