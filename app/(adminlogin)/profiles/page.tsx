@@ -13,6 +13,7 @@ interface Profile {
   _id: string;
   id: number;
   title: string;
+  email?: string;
   artist_title?: string;
   date?: string;
   content?: string;
@@ -28,6 +29,7 @@ interface Profile {
 }
 
 const IMPORTANT_FIELDS = [
+  "email",
   "artist_title",
   "featured_image",
   "company_logo",
@@ -41,7 +43,6 @@ export default function ProfilesPage() {
   const [selected, setSelected] = useState<Profile | null>(null);
   const [form, setForm] = useState<Partial<Profile>>({});
   const [loading, setLoading] = useState(false);
-
   const [filterMissing, setFilterMissing] = useState(false);
 
   // Search
@@ -54,7 +55,9 @@ export default function ProfilesPage() {
       setSearching(true);
 
       const url = searchTerm.trim()
-        ? `/api/profiles2?search=${encodeURIComponent(searchTerm.trim())}`
+        ? `/api/profiles2?search=${encodeURIComponent(
+            searchTerm.trim()
+          )}`
         : "/api/profiles2";
 
       const res = await fetch(url);
@@ -78,7 +81,7 @@ export default function ProfilesPage() {
     load();
   }, []);
 
-  // Search when the user submits the form
+  // Search
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -119,7 +122,6 @@ export default function ProfilesPage() {
         throw new Error("Save failed");
       }
 
-      // Reload using current search
       await load(search);
 
       setSelected(null);
@@ -186,7 +188,7 @@ export default function ProfilesPage() {
                 onChange={(e) =>
                   setSearchInput(e.target.value)
                 }
-                placeholder="Search profiles by name, job title, slug, category..."
+                placeholder="Search profiles by name, email, job title, slug, category..."
                 className="w-full border rounded-lg px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
 
@@ -232,7 +234,7 @@ export default function ProfilesPage() {
 
         {/* Main content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* List */}
+          {/* Profile List */}
           <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
             <div className="bg-gray-50 px-4 py-3 font-medium border-b flex justify-between">
               <span>
@@ -273,6 +275,10 @@ export default function ProfilesPage() {
                       </div>
 
                       <div className="text-sm text-gray-500">
+                        {p.email || "— no email"}
+                      </div>
+
+                      <div className="text-sm text-gray-500">
                         {p.artist_title || "— no title"}
                       </div>
 
@@ -299,8 +305,10 @@ export default function ProfilesPage() {
                 Editing: {selected.title}
               </h2>
 
+              {/* Basic fields */}
               {[
                 "title",
+                "email",
                 "artist_title",
                 "date",
                 "slug",
@@ -324,6 +332,7 @@ export default function ProfilesPage() {
                   </label>
 
                   <input
+                    type={key === "email" ? "email" : "text"}
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={(form[key] as string) ?? ""}
                     onChange={(e) =>
@@ -355,140 +364,143 @@ export default function ProfilesPage() {
                 />
               </div>
 
+              {/* Social Icons */}
               <div>
-  <div className="flex items-center justify-between mb-2">
-    <label className="block text-sm font-medium">
-      Social icons
-    </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">
+                    Social icons
+                  </label>
 
-    <button
-      type="button"
-      onClick={() => {
-        setForm((prev) => ({
-          ...prev,
-          social_icons: [
-            ...(prev.social_icons ?? []),
-            {
-              icon_type: "",
-              social_network_url: "",
-            },
-          ],
-        }));
-      }}
-      className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-    >
-      + Add social link
-    </button>
-  </div>
-
-  <div className="space-y-3">
-    {(form.social_icons ?? []).length === 0 ? (
-      <div className="border rounded-lg p-4 text-sm text-gray-500 bg-gray-50">
-        No social links added.
-      </div>
-    ) : (
-      (form.social_icons ?? []).map(
-        (social, index) => (
-          <div
-            key={index}
-            className="border rounded-lg p-4 bg-gray-50"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Icon type */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Icon type
-                </label>
-
-                <input
-                  type="text"
-                  value={
-                    social.icon_type ?? ""
-                  }
-                  onChange={(e) => {
-                    setForm((prev) => {
-                      const socialIcons = [
-                        ...(prev.social_icons ?? []),
-                      ];
-
-                      socialIcons[index] = {
-                        ...socialIcons[index],
-                        icon_type:
-                          e.target.value,
-                      };
-
-                      return {
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm((prev) => ({
                         ...prev,
-                        social_icons:
-                          socialIcons,
-                      };
-                    });
-                  }}
-                  placeholder="linkedin"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                        social_icons: [
+                          ...(prev.social_icons ?? []),
+                          {
+                            icon_type: "",
+                            social_network_url: "",
+                          },
+                        ],
+                      }));
+                    }}
+                    className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+                  >
+                    + Add social link
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {(form.social_icons ?? []).length === 0 ? (
+                    <div className="border rounded-lg p-4 text-sm text-gray-500 bg-gray-50">
+                      No social links added.
+                    </div>
+                  ) : (
+                    (form.social_icons ?? []).map(
+                      (social, index) => (
+                        <div
+                          key={index}
+                          className="border rounded-lg p-4 bg-gray-50"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Icon type */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Icon type
+                              </label>
+
+                              <input
+                                type="text"
+                                value={
+                                  social.icon_type ?? ""
+                                }
+                                onChange={(e) => {
+                                  setForm((prev) => {
+                                    const socialIcons = [
+                                      ...(prev.social_icons ??
+                                        []),
+                                    ];
+
+                                    socialIcons[index] = {
+                                      ...socialIcons[index],
+                                      icon_type:
+                                        e.target.value,
+                                    };
+
+                                    return {
+                                      ...prev,
+                                      social_icons:
+                                        socialIcons,
+                                    };
+                                  });
+                                }}
+                                placeholder="linkedin"
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+
+                            {/* URL */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Social network URL
+                              </label>
+
+                              <input
+                                type="url"
+                                value={
+                                  social.social_network_url ??
+                                  ""
+                                }
+                                onChange={(e) => {
+                                  setForm((prev) => {
+                                    const socialIcons = [
+                                      ...(prev.social_icons ??
+                                        []),
+                                    ];
+
+                                    socialIcons[index] = {
+                                      ...socialIcons[index],
+                                      social_network_url:
+                                        e.target.value,
+                                    };
+
+                                    return {
+                                      ...prev,
+                                      social_icons:
+                                        socialIcons,
+                                    };
+                                  });
+                                }}
+                                placeholder="https://linkedin.com/in/..."
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Remove */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => ({
+                                ...prev,
+                                social_icons: (
+                                  prev.social_icons ?? []
+                                ).filter(
+                                  (_, i) => i !== index
+                                ),
+                              }));
+                            }}
+                            className="mt-3 text-sm text-red-600 hover:text-red-800 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )
+                    )
+                  )}
+                </div>
               </div>
-
-              {/* URL */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Social network URL
-                </label>
-
-                <input
-                  type="url"
-                  value={
-                    social.social_network_url ??
-                    ""
-                  }
-                  onChange={(e) => {
-                    setForm((prev) => {
-                      const socialIcons = [
-                        ...(prev.social_icons ?? []),
-                      ];
-
-                      socialIcons[index] = {
-                        ...socialIcons[index],
-                        social_network_url:
-                          e.target.value,
-                      };
-
-                      return {
-                        ...prev,
-                        social_icons:
-                          socialIcons,
-                      };
-                    });
-                  }}
-                  placeholder="https://linkedin.com/in/..."
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Remove button */}
-            <button
-              type="button"
-              onClick={() => {
-                setForm((prev) => ({
-                  ...prev,
-                  social_icons: (
-                    prev.social_icons ?? []
-                  ).filter(
-                    (_, i) => i !== index
-                  ),
-                }));
-              }}
-              className="mt-3 text-sm text-red-600 hover:text-red-800 hover:underline"
-            >
-              Remove
-            </button>
-          </div>
-        )
-      )
-    )}
-  </div>
-</div>
 
               {/* Buttons */}
               <div className="flex gap-3 pt-4">

@@ -10,21 +10,51 @@ const SocialIconSchema = new Schema(
 
 const ProfileSchema = new Schema(
   {
-    id: { type: Number, required: true, unique: true },
-    title: { type: String, required: true },
+    id: {
+      type: Number,
+      required: true,
+      unique: true,
+    },
+
+    title: {
+      type: String,
+      required: true,
+    },
+
+    email: {
+      type: String,
+    },
+
     artist_title: String,
+
     date: String,
+
     content: String,
-    slug: { type: String, required: true, unique: true },
+
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+
     featured_image: String,
+
     power_list_category: String,
+
     link: String,
+
     social_icons: [SocialIconSchema],
+
     count: String,
+
     company_logo: String,
+
     full_slug: String,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-export default models.Profile || mongoose.model("Profile", ProfileSchema);
+export default models.Profile ||
+  mongoose.model("Profile", ProfileSchema);
