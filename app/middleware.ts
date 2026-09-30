@@ -13,6 +13,7 @@ export function middleware(
 
   const isAdminPage =
     pathname.startsWith("/profiles") ||
+    pathname.startsWith("/editticket") ||
     pathname.startsWith("/upload");
 
   const isLoginPage =
