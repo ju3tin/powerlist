@@ -12,7 +12,7 @@ export default function LoginPage11() {
       <div className="max-w-md w-full">
         {/* Card */}
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-8 text-center">
-          {/* Logo / Brand */}
+          {/* Logo / Brand */} 
           <div className="mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-600 mb-4">
               <span className="text-2xl font-bold text-white">IF</span>
