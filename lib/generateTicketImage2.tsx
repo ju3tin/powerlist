@@ -6,6 +6,7 @@ import {
   defaultTicketConfig,
   type TicketConfig,
   type TicketParams,
+  type TicketLayer,
 } from "@/lib/ticketTypes";
 
 export type { TicketConfig, TicketParams };
@@ -34,6 +35,20 @@ const FONT_URLS: Record<string, string> = {
     "https://cdn.jsdelivr.net/fontsource/fonts/merriweather@latest/latin-700-normal.woff",
 };
 
+function str(v: unknown, fallback = ""): string {
+  if (v == null) return fallback;
+  return String(v);
+}
+
+function resolveText(
+  template: unknown,
+  vars: Record<string, string>
+): string {
+  const t = str(template, "");
+  if (!t) return "";
+  return t.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
+}
+
 async function loadFontData(fontFamily: string): Promise<ArrayBuffer | null> {
   const url = FONT_URLS[fontFamily];
   if (!url) return null;
@@ -50,28 +65,29 @@ async function toPngDataUrl(
   imageUrl: string,
   w = 200,
   h = 200
-): Promise<string> {
-  const res = await fetch(imageUrl, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; TicketGenerator/1.0)",
-    },
-  });
-  if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
-  const input = Buffer.from(await res.arrayBuffer());
-  const png = await sharp(input)
-    .png()
-    .resize(w, h, { fit: "cover", position: "centre" })
-    .toBuffer();
-  return `data:image/png;base64,${png.toString("base64")}`;
-}
-
-function resolveText(
-    template: string | undefined | null,
-    vars: Record<string, string>
-  ): string {
-    if (template == null || typeof template !== "string") return "";
-    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
+): Promise<string | null> {
+  try {
+    if (!imageUrl) return null;
+    const res = await fetch(imageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; TicketGenerator/1.0)",
+      },
+    });
+    if (!res.ok) return null;
+    const input = Buffer.from(await res.arrayBuffer());
+    const png = await sharp(input)
+      .png()
+      .resize(Math.max(1, w), Math.max(1, h), {
+        fit: "cover",
+        position: "centre",
+      })
+      .toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch (err) {
+    console.warn("toPngDataUrl failed:", imageUrl, err);
+    return null;
   }
+}
 
 export async function generateTicketImage({
   name,
@@ -84,71 +100,88 @@ export async function generateTicketImage({
   linkedinUrl = "",
   config: userConfig,
 }: TicketParams): Promise<Buffer> {
+  const safeName = str(name, "Guest");
+  const safeTokenId = str(tokenId, "001");
+  const safeRole = str(role, "");
+  const safeCategory = str(category, "");
+  const safeYear = str(year, "2026");
+  const safeLinkedin = str(linkedinUrl, "");
+  const safeImageUrl = str(imageUrl, "");
+  const safeCompanyLogo = str(companyLogo, "");
+
+  const layers: TicketLayer[] = Array.isArray(userConfig?.layers)
+    ? userConfig!.layers
+    : defaultTicketConfig.layers;
+
   const c: TicketConfig = {
     ...defaultTicketConfig,
     ...userConfig,
     background: userConfig?.background ?? defaultTicketConfig.background,
-    layers: userConfig?.layers ?? defaultTicketConfig.layers,
+    layers,
     showTopBar: userConfig?.showTopBar ?? defaultTicketConfig.showTopBar ?? true,
+    width: userConfig?.width ?? defaultTicketConfig.width ?? 600,
+    height: userConfig?.height ?? defaultTicketConfig.height ?? 840,
+    fontFamily: userConfig?.fontFamily ?? defaultTicketConfig.fontFamily ?? "Inter",
   };
 
-  const width = c.width ?? 600;
-  const height = c.height ?? 840;
-  const globalFont = c.fontFamily || "Inter";
+  const width = Number(c.width) || 600;
+  const height = Number(c.height) || 840;
+  const globalFont = str(c.fontFamily, "Inter");
 
   const vars: Record<string, string> = {
-    name,
-    tokenId,
-    role,
-    category,
-    year,
-    linkedin: linkedinUrl,
+    name: safeName,
+    tokenId: safeTokenId,
+    role: safeRole,
+    category: safeCategory,
+    year: safeYear,
+    linkedin: safeLinkedin,
   };
 
   const imageCache = new Map<string, string>();
 
-  async function resolveImageSrc(src: string, w: number, h: number) {
-    const key = `${src}|${w}x${h}`;
-    if (imageCache.has(key)) return imageCache.get(key)!;
+  async function resolveImageSrc(
+    src: unknown,
+    w: number,
+    h: number
+  ): Promise<string | undefined> {
+    const source = str(src, "");
+    if (!source) return undefined;
 
-    let url = src;
-    if (src === "avatar") {
-      if (!imageUrl) return undefined;
-      url = imageUrl;
-    } else if (src === "company_logo") {
-      if (!companyLogo) return undefined;
-      url = companyLogo;
+    const key = `${source}|${w}x${h}`;
+    if (imageCache.has(key)) return imageCache.get(key);
+
+    let url = source;
+    if (source === "avatar") {
+      if (!safeImageUrl) return undefined;
+      url = safeImageUrl;
+    } else if (source === "company_logo") {
+      if (!safeCompanyLogo) return undefined;
+      url = safeCompanyLogo;
     }
 
-    try {
-      const dataUrl = await toPngDataUrl(
-        url,
-        Math.round(w * 2),
-        Math.round(h * 2)
-      );
-      imageCache.set(key, dataUrl);
-      return dataUrl;
-    } catch (err) {
-      console.warn("Image failed:", src, err);
-      return undefined;
-    }
+    const dataUrl = await toPngDataUrl(
+      url,
+      Math.round(Math.max(1, w) * 2),
+      Math.round(Math.max(1, h) * 2)
+    );
+    if (!dataUrl) return undefined;
+    imageCache.set(key, dataUrl);
+    return dataUrl;
   }
 
+  // Background image
   let bgImage: string | undefined;
-  if (c.background.type === "image" && c.background.value) {
-    try {
-      bgImage = await toPngDataUrl(c.background.value, width, height);
-    } catch (err) {
-      console.warn("Background image failed:", err);
-    }
+  if (c.background?.type === "image" && str(c.background.value)) {
+    const data = await toPngDataUrl(str(c.background.value), width, height);
+    if (data) bgImage = data;
   }
 
-  // Load all fonts used by text layers
+  // Fonts used by text layers
   const fontNames = new Set<string>();
   fontNames.add(globalFont);
   for (const layer of c.layers) {
-    if (layer.type === "text" && layer.visible !== false) {
-      fontNames.add(layer.fontFamily || globalFont);
+    if (layer?.type === "text" && layer.visible !== false) {
+      fontNames.add(str(layer.fontFamily, globalFont));
     }
   }
 
@@ -169,9 +202,13 @@ export async function generateTicketImage({
 
   const resolvedLayers = await Promise.all(
     c.layers.map(async (layer) => {
-      if (layer.visible === false) return null;
+      if (!layer || layer.visible === false) return null;
       if (layer.type === "image") {
-        const src = await resolveImageSrc(layer.src, layer.width, layer.height);
+        const src = await resolveImageSrc(
+          layer.src,
+          Number(layer.width) || 88,
+          Number(layer.height) || 88
+        );
         return { layer, src };
       }
       return { layer, src: undefined as string | undefined };
@@ -179,10 +216,10 @@ export async function generateTicketImage({
   );
 
   const bgStyle =
-    c.background.type === "gradient"
-      ? { background: c.background.value }
-      : c.background.type === "color"
-        ? { background: c.background.value }
+    c.background?.type === "gradient"
+      ? { background: str(c.background.value, "#0f1c2e") }
+      : c.background?.type === "color"
+        ? { background: str(c.background.value, "#0f1c2e") }
         : bgImage
           ? {
               backgroundImage: `url(${bgImage})`,
@@ -219,92 +256,116 @@ export async function generateTicketImage({
           />
         )}
 
-        {resolvedLayers.map((item) => {
+        {resolvedLayers.map((item, index) => {
           if (!item) return null;
           const { layer, src } = item;
 
+          // ─── TEXT LAYER ───────────────────────────────────────
           if (layer.type === "text") {
             const text = resolveText(layer.content, vars);
-            if (!text.trim()) return null;
-            const layerFont = layer.fontFamily || globalFont;
+            if (!text) return null;
+
+            const layerFont = str(layer.fontFamily, globalFont);
             const fontFamilyCss =
               layerFont === "system" || !FONT_URLS[layerFont]
                 ? "sans-serif"
                 : `"${layerFont}", sans-serif`;
 
+            // Build style object carefully – never pass undefined to Satori
+            const style: React.CSSProperties = {
+              display: "flex",
+              position: "absolute",
+              left: Number(layer.x) || 0,
+              top: Number(layer.y) || 0,
+              fontSize: Number(layer.fontSize) || 16,
+              color: str(layer.color, "#ffffff"),
+              fontFamily: fontFamilyCss,
+              fontWeight: Number(layer.fontWeight) || 700,
+              textTransform: layer.textTransform ?? "none",
+              opacity: layer.opacity ?? 1,
+              lineHeight: 1.15,
+            };
+
+            // Only add these properties when they have a real value
+            if (layer.letterSpacing) {
+              style.letterSpacing = layer.letterSpacing;
+            }
+            if (layer.maxWidth != null) {
+              style.maxWidth = layer.maxWidth;
+            }
+
             return (
-              <div
-                key={layer.id}
-                style={{
-                  display: "flex",
-                  position: "absolute",
-                  left: layer.x,
-                  top: layer.y,
-                  fontSize: layer.fontSize,
-                  color: layer.color,
-                  fontFamily: fontFamilyCss,
-                  fontWeight: layer.fontWeight ?? 700,
-                  letterSpacing: layer.letterSpacing,
-                  textTransform: layer.textTransform ?? "none",
-                  maxWidth: layer.maxWidth,
-                  opacity: layer.opacity ?? 1,
-                  lineHeight: 1.15,
-                }}
-              >
+              <div key={str(layer.id, `text-${index}`)} style={style}>
                 {text}
               </div>
             );
           }
 
+          // ─── IMAGE LAYER ──────────────────────────────────────
           if (layer.type === "image") {
-            const r = layer.borderRadius ?? 0;
+            const lw = Number(layer.width) || 88;
+            const lh = Number(layer.height) || 88;
+            const r = Number(layer.borderRadius) || 0;
+            const borderRadius = r >= 999 ? lw / 2 : r;
+
             if (src) {
+              const style: React.CSSProperties = {
+                position: "absolute",
+                left: Number(layer.x) || 0,
+                top: Number(layer.y) || 0,
+                width: lw,
+                height: lh,
+                borderRadius,
+                objectFit: layer.objectFit ?? "cover",
+                opacity: layer.opacity ?? 1,
+              };
+
+              if (layer.borderWidth) {
+                style.border = `${layer.borderWidth}px solid ${str(
+                  layer.borderColor,
+                  "transparent"
+                )}`;
+              }
+
               return (
                 <img
-                  key={layer.id}
+                  key={str(layer.id, `img-${index}`)}
                   src={src}
-                  width={layer.width}
-                  height={layer.height}
-                  style={{
-                    position: "absolute",
-                    left: layer.x,
-                    top: layer.y,
-                    width: layer.width,
-                    height: layer.height,
-                    borderRadius: r >= 999 ? layer.width / 2 : r,
-                    objectFit: layer.objectFit ?? "cover",
-                    border: layer.borderWidth
-                      ? `${layer.borderWidth}px solid ${layer.borderColor || "transparent"}`
-                      : undefined,
-                    opacity: layer.opacity ?? 1,
-                  }}
+                  width={lw}
+                  height={lh}
+                  style={style}
                 />
               );
             }
-            if (layer.src === "avatar") {
+
+            // Avatar fallback initials
+            if (str(layer.src) === "avatar") {
+              const style: React.CSSProperties = {
+                display: "flex",
+                position: "absolute",
+                left: Number(layer.x) || 0,
+                top: Number(layer.y) || 0,
+                width: lw,
+                height: lh,
+                borderRadius,
+                background: "#1e63f1",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: Math.round(lw * 0.32),
+                fontWeight: 700,
+                opacity: layer.opacity ?? 1,
+              };
+
+              if (layer.borderWidth) {
+                style.border = `${layer.borderWidth}px solid ${str(
+                  layer.borderColor,
+                  "transparent"
+                )}`;
+              }
+
               return (
-                <div
-                  key={layer.id}
-                  style={{
-                    display: "flex",
-                    position: "absolute",
-                    left: layer.x,
-                    top: layer.y,
-                    width: layer.width,
-                    height: layer.height,
-                    borderRadius: r >= 999 ? layer.width / 2 : r,
-                    background: "#1e63f1",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: Math.round(layer.width * 0.32),
-                    fontWeight: 700,
-                    border: layer.borderWidth
-                      ? `${layer.borderWidth}px solid ${layer.borderColor || "transparent"}`
-                      : undefined,
-                    opacity: layer.opacity ?? 1,
-                  }}
-                >
-                  {name.charAt(0).toUpperCase()}
+                <div key={str(layer.id, `avatar-${index}`)} style={style}>
+                  {safeName.charAt(0).toUpperCase() || "?"}
                 </div>
               );
             }

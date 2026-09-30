@@ -3,10 +3,23 @@ import { getTicketConfig } from "@/lib/getTicketConfig";
 import type { TicketConfig } from "@/lib/ticketTypes";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * Cleans a value.
+ * Returns undefined when the value should be cancelled / ignored.
+ * Supported cancel values: null, undefined, "", "false", "undefined", "null", "cancel"
+ */
 function clean(value?: string | null) {
   if (value == null) return undefined;
   const v = String(value).trim();
-  if (!v || v === "false" || v === "undefined" || v === "null") return undefined;
+  if (
+    !v ||
+    v === "false" ||
+    v === "undefined" ||
+    v === "null" ||
+    v.toLowerCase() === "cancel"
+  ) {
+    return undefined;
+  }
   return v;
 }
 
@@ -42,14 +55,14 @@ async function buildTicket(input: {
   );
 
   return generateTicketImage({
-    name: clean(input.name) || "Guest",
-    tokenId: clean(input.tokenId) || "001",
+    name: clean(input.name) ?? "Guest",
+    tokenId: clean(input.tokenId) ?? "001",
     imageUrl: clean(input.imageUrl),
-    role: clean(input.role) || "",
-    category: clean(input.category) || "",
-    year: clean(input.year) || "2026",
+    role: clean(input.role) ?? "",
+    category: clean(input.category) ?? "",
+    year: clean(input.year) ?? "2026",
     companyLogo: clean(input.companyLogo),
-    linkedinUrl: clean(input.linkedinUrl) || "",
+    linkedinUrl: clean(input.linkedinUrl) ?? "",
     config,
   });
 }
@@ -67,13 +80,12 @@ export async function GET(req: NextRequest) {
       year: sp.get("year"),
       companyLogo: sp.get("companyLogo"),
       linkedinUrl: sp.get("linkedinUrl"),
-      // no config → load from Mongo
     });
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "image/png",
-        "Cache-Control": "no-store", // avoid stale default template
+        "Cache-Control": "no-store",
       },
     });
   } catch (error: any) {
@@ -98,7 +110,7 @@ export async function POST(req: NextRequest) {
       year: body.year,
       companyLogo: body.companyLogo,
       linkedinUrl: body.linkedinUrl,
-      config: body.config ?? null, // admin sends live config
+      config: body.config ?? null,
     });
 
     return new NextResponse(new Uint8Array(buffer), {
