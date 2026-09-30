@@ -5,3 +5,9 @@ declare module "next-auth" {
     linkedinUrl?: string;
   }
 }
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    linkedinUrl?: string;
+  }
+}
