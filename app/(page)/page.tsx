@@ -71,7 +71,7 @@ export default function Page() {
         <nav className="hidden items-center gap-8 text-sm font-medium text-[#5f7183] md:flex" aria-label="Main navigation">
           <a href="#about" className="transition-colors hover:text-[#10253f]">About the Powerlist</a>
           <a href="#how-it-works" className="transition-colors hover:text-[#10253f]">How it works</a>
-          <a href="#faq" className="transition-colors hover:text-[#10253f]">FAQ</a>
+          <a href="/login" className="transition-colors hover:text-[#10253f]">FAQ</a>
         </nav>
         <div className="flex items-center gap-3">
           {isConnected ? (
@@ -114,7 +114,7 @@ export default function Page() {
 
       <section id="how-it-works" className="mx-auto flex max-w-[1280px] flex-col gap-8 px-6 py-16 lg:flex-row lg:items-center lg:justify-between lg:px-10 lg:py-24"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#1e63f1]">Built for the community</p><h2 className="mt-4 max-w-xl text-4xl font-semibold leading-tight tracking-[-.05em]">Your identity stays yours. Your ticket goes everywhere.</h2></div><div className="flex max-w-md items-center gap-4 rounded-2xl border border-[#dfe5eb] bg-white p-5"><BriefcaseBusiness className="size-7 text-[#0a66c2]" /><p className="text-sm leading-6 text-[#627487]">We use your LinkedIn profile only to verify your place in the Powerlist community.</p></div></section>
 
-      <footer id="faq" className="border-t border-[#e4e9ee] bg-[#10253f] text-white"><div className="mx-auto flex max-w-[1280px] flex-col gap-7 px-6 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-10"><div><p className="font-bold">innovate finance</p><p className="mt-2 text-sm text-[#9baebe]">Women in FinTech Powerlist 2026</p></div><div className="flex gap-6 text-sm text-[#b7c4d0]"><a href="#about" className="hover:text-white">About</a><a href="#how-it-works" className="hover:text-white">How it works</a><a href="#faq" className="hover:text-white">Privacy</a></div></div></footer>
+      <footer id="admin" className="border-t border-[#e4e9ee] bg-[#10253f] text-white"><div className="mx-auto flex max-w-[1280px] flex-col gap-7 px-6 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-10"><div><p className="font-bold">innovate finance</p><p className="mt-2 text-sm text-[#9baebe]">Women in FinTech Powerlist 2026</p></div><div className="flex gap-6 text-sm text-[#b7c4d0]"><a href="#about" className="hover:text-white">About</a><a href="#how-it-works" className="hover:text-white">How it works</a><a href="/login" className="hover:text-white">Admin</a></div></div></footer>
 
       {badgeClaimed && verifiedProfile && <section className="fixed bottom-6 right-6 z-40 w-[min(360px,calc(100vw-3rem))] overflow-hidden rounded-3xl border border-[#dfe5eb] bg-white shadow-2xl" aria-label="Your Powerlist badge"><div className="h-2 bg-[#1e63f1]" /><div className="flex gap-4 p-5"><img src={verifiedProfile.featured_image || '/placeholder.jpg'} alt="" className="size-20 rounded-2xl object-cover" /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#1e63f1]">Badge created</p><h2 className="mt-1 truncate text-lg font-bold text-[#10253f]">{verifiedProfile.title}</h2><p className="mt-1 text-xs text-[#718294]">Women in FinTech Powerlist 2026</p><p className="mt-3 inline-flex rounded-full bg-[#effcf4] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] text-[#176b3a]">Avalanche · 1 of 1</p></div></div></section>}
 
