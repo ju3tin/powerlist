@@ -9,6 +9,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       config: doc?.config ?? null,
+      updatedAt: doc?.updatedAt ?? null,
     });
   } catch (error: any) {
     console.error(error);
@@ -32,15 +33,26 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    if (!Array.isArray(config.layers) || !config.background) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "config must include layers[] and background",
+        },
+        { status: 400 }
+      );
+    }
+
     const doc = await TicketConfigModel.findOneAndUpdate(
       { key: "default" },
-      { config },
+      { $set: { config } },
       { upsert: true, new: true }
     );
 
     return NextResponse.json({
       success: true,
       config: doc.config,
+      updatedAt: doc.updatedAt,
     });
   } catch (error: any) {
     console.error(error);
