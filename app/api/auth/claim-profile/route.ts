@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth"; // ← your auth file
+import { auth } from "@/auth";
 import { connectDB } from "@/lib/mongodb";
 import { normalizeLinkedInUrl, extractLinkedInVanity } from "@/lib/linkedin";
-
-// ⚠️ CHANGE THIS to your real model
 import ProfileModel from "@/models/Profile";
+import { cookies } from "next/headers";
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. Try Auth.js session first
     const session = await auth();
 
-    // User must have gone through LinkedIn login first
-    if (!session?.user) {
+    // 2. Also read the custom LinkedIn cookies you already have
+    const cookieStore = await cookies();
+    const linkedinSub = cookieStore.get("linkedin_sub")?.value;
+    const linkedinEmail = cookieStore.get("linkedin_email")?.value;
+    const linkedinName = cookieStore.get("linkedin_name")?.value;
+
+    // Must have either a session or the LinkedIn cookies
+    if (!session?.user && !linkedinSub) {
       return NextResponse.json(
         { error: "Please login with LinkedIn first" },
         { status: 401 }
@@ -24,14 +30,17 @@ export async function POST(req: NextRequest) {
     const normalized = normalizeLinkedInUrl(linkedinUrl);
     if (!normalized) {
       return NextResponse.json(
-        { error: "Invalid LinkedIn URL. Example: https://www.linkedin.com/in/abbythomas/" },
+        {
+          error:
+            "Invalid LinkedIn URL. Example: https://www.linkedin.com/in/abbythomas/",
+        },
         { status: 400 }
       );
     }
 
     await connectDB();
 
-    // Find the Powerlist profile by LinkedIn URL
+    // Find matching Powerlist profile
     const profile = await ProfileModel.findOne({
       "social_icons.social_network_url": {
         $regex: new RegExp(
@@ -48,7 +57,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate a stable email so they can login next time
+    // Generate a stable email
     const vanity =
       extractLinkedInVanity(normalized) ||
       profile.slug ||
@@ -56,22 +65,21 @@ export async function POST(req: NextRequest) {
 
     const generatedEmail = `${vanity}@linkedin.powerlist.local`;
 
-    // Save the email on the profile
+    // Save email on the profile
     profile.email = generatedEmail;
     await profile.save();
 
-    // Optional: also update a User collection if you have one
-    // await UserModel.findOneAndUpdate(
-    //   { /* match by LinkedIn sub or something */ },
-    //   { email: generatedEmail, name: profile.title },
-    //   { upsert: true }
-    // );
+    // Optional: also save the LinkedIn sub for future matching
+    if (linkedinSub) {
+      profile.linkedinSub = linkedinSub; // only if you add this field to the schema
+      await profile.save();
+    }
 
     return NextResponse.json({
       success: true,
       email: generatedEmail,
       name: profile.title,
-      redirectTo: "/", // ← change to your dashboard if needed
+      redirectTo: "/",
     });
   } catch (err: any) {
     console.error("[claim-profile]", err);

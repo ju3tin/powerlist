@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+
+import AdminNav from "@/components/nav";
 import {
   defaultTicketConfig,
   TICKET_FONTS,
@@ -316,6 +318,7 @@ export default function AdminTicketPage() {
 
   return (
     <div className="min-h-screen bg-[#0a1220] text-white">
+         <AdminNav />
       <header className="border-b border-white/10 px-6 py-3 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold">Ticket Designer</h1>
