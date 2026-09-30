@@ -1,13 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 export default function ClaimProfilePage() {
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+    // Already has email → no need to claim
+    if (status === "authenticated" && session?.user?.email) {
+      router.push("/");
+    }
+  }, [status, session, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,7 +41,6 @@ export default function ClaimProfilePage() {
         return;
       }
 
-      // Success
       router.push(data.redirectTo || "/");
       router.refresh();
     } catch {
@@ -38,20 +49,28 @@ export default function ClaimProfilePage() {
     }
   }
 
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        Loading...
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 px-4">
+      <div className="max-w-md w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-8">
+        <h1 className="text-2xl font-bold text-white mb-2">
           Claim your Powerlist profile
         </h1>
-        <p className="text-gray-600 mb-6">
-          LinkedIn did not share your email.  
-          Paste your LinkedIn profile URL so we can match you and create an account.
+        <p className="text-blue-200 mb-6 text-sm">
+          LinkedIn did not share your email. Paste your LinkedIn profile URL so
+          we can match you and create an account.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-blue-100 mb-1">
               Your LinkedIn URL
             </label>
             <input
@@ -60,12 +79,12 @@ export default function ClaimProfilePage() {
               placeholder="https://www.linkedin.com/in/yourname"
               value={linkedinUrl}
               onChange={(e) => setLinkedinUrl(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-blue-200/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">
+            <p className="text-sm text-red-300 bg-red-500/20 border border-red-500/30 px-3 py-2 rounded">
               {error}
             </p>
           )}
@@ -79,7 +98,7 @@ export default function ClaimProfilePage() {
           </button>
         </form>
 
-        <p className="mt-6 text-xs text-gray-500 text-center">
+        <p className="mt-6 text-xs text-blue-200/60 text-center">
           Example: https://www.linkedin.com/in/abbythomas/
         </p>
       </div>

@@ -16,13 +16,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user }) {
-      // If LinkedIn gave an email → normal login
-      if (user.email) {
-        return true;
-      }
-
-      // No email → send user to claim page
-      return "/claim-profile";
+      // Always allow the sign-in (so a session is created)
+      return true;
     },
 
     async jwt({ token, account, profile, user }) {
@@ -37,6 +32,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.email = user.email;
       }
 
+      // Mark that this user still needs to claim a profile
+      if (user && !user.email) {
+        token.needsClaim = true;
+      }
+
       return token;
     },
 
@@ -45,6 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.email = token.email as string;
       }
       session.linkedinUrl = (token.linkedinUrl as string) || undefined;
+      (session as any).needsClaim = token.needsClaim === true;
       return session;
     },
   },
