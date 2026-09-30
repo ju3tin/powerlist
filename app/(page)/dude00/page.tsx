@@ -3,7 +3,7 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+export default function LoginPage11() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
