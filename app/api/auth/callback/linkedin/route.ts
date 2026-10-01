@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
       new URL(
         profile
           ? `/profiles/${profile.slug}`
-          : "/login?claim=true",
+          : "/?claim=true",
         req.url
       )
     );
