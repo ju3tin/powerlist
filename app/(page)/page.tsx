@@ -76,6 +76,43 @@ const [authChecked, setAuthChecked] = useState(false);
 useEffect(() => {
   let cancelled = false;
 
+  async function checkMe() {
+    try {
+      const response = await fetch("/api/linkedin/me", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!cancelled) {
+        setIsLinkedInAuthenticated(
+          response.ok && data.authenticated === true
+        );
+      }
+    } catch {
+      if (!cancelled) {
+        setIsLinkedInAuthenticated(false);
+      }
+    } finally {
+      if (!cancelled) {
+        setAuthChecked(true);
+      }
+    }
+  }
+
+  checkMe();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
+
+useEffect(() => {
+  let cancelled = false;
+
   async function checkLinkedInAuth() {
     try {
       const response = await fetch("/api/linkedin/me", {
