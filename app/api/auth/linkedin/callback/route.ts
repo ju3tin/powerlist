@@ -1,118 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+import { connectDB } from "@/lib/mongodb";
+import Profile from "@/models/Profile";
 
-  const code = searchParams.get("code");
-  const error = searchParams.get("error");
-  const errorDescription =
-    searchParams.get("error_description");
+export async function GET(req: NextRequest) {
+  const code = req.nextUrl.searchParams.get("code");
+  const error = req.nextUrl.searchParams.get("error");
 
-  // LinkedIn returned an error
-  if (error) {
-    return NextResponse.json(
-      {
-        error,
-        error_description: errorDescription,
-      },
-      { status: 400 }
-    );
-  }
+  if (error || !code) {
+    console.error("LinkedIn error:", error);
 
-  // No authorization code
-  if (!code) {
-    return NextResponse.json(
-      {
-        error:
-          "Missing LinkedIn authorization code",
-      },
-      { status: 400 }
-    );
-  }
-
-  const clientId =
-    process.env.AUTH_LINKEDIN_ID;
-
-  const clientSecret =
-    process.env.AUTH_LINKEDIN_SECRET;
-
-  const redirectUri =
-    process.env.LINKEDIN_REDIRECT_URI;
-
-  if (
-    !clientId ||
-    !clientSecret ||
-    !redirectUri
-  ) {
-    return NextResponse.json(
-      {
-        error:
-          "LinkedIn environment variables are not configured",
-      },
-      { status: 500 }
+    return NextResponse.redirect(
+      new URL(
+        "/login?error=linkedin_auth_failed",
+        req.url
+      )
     );
   }
 
   try {
-    // --------------------------------------------------
-    // 1. Exchange authorization code for access token
-    // --------------------------------------------------
+    const redirectUri =
+      process.env.LINKEDIN_REDIRECT_URI;
 
-    const tokenResponse = await fetch(
+    if (!redirectUri) {
+      throw new Error(
+        "LINKEDIN_REDIRECT_URI is not configured"
+      );
+    }
+
+    // -----------------------------------------
+    // 1. Exchange authorization code for token
+    // -----------------------------------------
+
+    const tokenRes = await axios.post(
       "https://www.linkedin.com/oauth/v2/accessToken",
+      new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        client_id: process.env.AUTH_LINKEDIN_ID!,
+        client_secret: process.env.AUTH_LINKEDIN_SECRET!,
+      }),
       {
-        method: "POST",
         headers: {
           "Content-Type":
             "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code,
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: redirectUri,
-        }),
       }
     );
 
-    const tokenData =
-      await tokenResponse.json();
-
-    if (!tokenResponse.ok) {
-      console.error(
-        "LinkedIn token error:",
-        tokenData
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Failed to obtain LinkedIn access token",
-          details: tokenData,
-        },
-        { status: 400 }
-      );
-    }
-
     const accessToken =
-      tokenData.access_token;
+      tokenRes.data.access_token;
 
-    if (!accessToken) {
-      return NextResponse.json(
-        {
-          error:
-            "LinkedIn did not return an access token",
-        },
-        { status: 400 }
-      );
-    }
-
-    // --------------------------------------------------
+    // -----------------------------------------
     // 2. Get LinkedIn user information
-    // --------------------------------------------------
+    // -----------------------------------------
 
-    const userResponse = await fetch(
+    const profileRes = await axios.get(
       "https://api.linkedin.com/v2/userinfo",
       {
         headers: {
@@ -121,111 +66,118 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const userData =
-      await userResponse.json();
+    const linkedin = profileRes.data;
 
-    if (!userResponse.ok) {
-      console.error(
-        "LinkedIn userinfo error:",
-        userData
-      );
+    console.log(
+      "LinkedIn profile:",
+      linkedin
+    );
 
-      return NextResponse.json(
-        {
-          error:
-            "Failed to get LinkedIn profile",
-          details: userData,
-        },
-        { status: 400 }
+    if (!linkedin.email) {
+      return NextResponse.redirect(
+        new URL(
+          "/login?error=no_linkedin_email",
+          req.url
+        )
       );
     }
 
-    /*
-      LinkedIn OpenID Connect normally returns:
+    const email = linkedin.email
+      .trim()
+      .toLowerCase();
 
-      sub
-      name
-      given_name
-      family_name
-      picture
-      email
-    */
+    await connectDB();
 
-    const linkedinId =
-      userData.sub;
+    // -----------------------------------------
+    // 3. Check whether email already exists
+    // -----------------------------------------
 
-    const name =
-      userData.name ||
-      `${userData.given_name || ""} ${
-        userData.family_name || ""
-      }`.trim();
+    const escapedEmail = email.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    );
 
-    const email =
-      userData.email || "";
+    const profile = await Profile.findOne({
+      email: {
+        $regex: `^${escapedEmail}$`,
+        $options: "i",
+      },
+    });
 
-    const picture =
-      userData.picture || "";
+    // -----------------------------------------
+    // 4. Create response
+    // -----------------------------------------
 
-    if (!linkedinId) {
-      return NextResponse.json(
-        {
-          error:
-            "LinkedIn user ID was not returned",
-        },
-        { status: 400 }
-      );
-    }
+    const response = NextResponse.redirect(
+      new URL(
+        profile
+          ? `/profiles/${profile.slug}`
+          : "/login?claim=true",
+        req.url
+      )
+    );
 
-    // --------------------------------------------------
-    // 3. Create your application session
-    // --------------------------------------------------
+    // -----------------------------------------
+    // 5. Login cookies
+    // -----------------------------------------
 
-    /*
-      For now we store the LinkedIn user information
-      in a signed/encrypted-style session cookie.
-
-      If you already have a User model/session system,
-      this is where we can connect it.
-    */
-
-    const session = {
-      linkedinId,
-      name,
-      email,
-      picture,
-    };
-
-    const response =
-      NextResponse.redirect(
-        new URL("/", request.url)
-      );
-
-    response.cookies.set({
-      name: "linkedin_session",
-      value: encodeURIComponent(
-        JSON.stringify(session)
-      ),
+    const cookieOptions = {
       httpOnly: true,
       secure:
         process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "lax" as const,
+      maxAge: 60 * 60 * 24,
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    };
 
-    return response;
-  } catch (err) {
-    console.error(
-      "LinkedIn callback error:",
-      err
+    response.cookies.set(
+      "linkedin_email",
+      email,
+      cookieOptions
     );
 
-    return NextResponse.json(
-      {
-        error:
-          "LinkedIn authentication failed",
-      },
-      { status: 500 }
+    response.cookies.set(
+      "linkedin_sub",
+      linkedin.sub || "",
+      cookieOptions
+    );
+
+    response.cookies.set(
+      "linkedin_name",
+      linkedin.name || "",
+      cookieOptions
+    );
+
+    response.cookies.set(
+      "linkedin_picture",
+      linkedin.picture || "",
+      cookieOptions
+    );
+
+    response.cookies.set(
+      "linkedin_first_name",
+      linkedin.given_name || "",
+      cookieOptions
+    );
+
+    response.cookies.set(
+      "linkedin_last_name",
+      linkedin.family_name || "",
+      cookieOptions
+    );
+
+    return response;
+  } catch (err: any) {
+    console.error(
+      "LinkedIn callback error:",
+      err.response?.data || err.message
+    );
+
+    return NextResponse.redirect(
+      new URL(
+        "/login?error=linkedin_failed",
+        req.url
+      )
     );
   }
 }
