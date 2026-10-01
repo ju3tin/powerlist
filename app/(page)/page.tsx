@@ -10,6 +10,29 @@ import HeroSection from "@/components/hero1";
 import PageStyle from "./PageStyle";
 import ClaimOverlay from "@/app/components/ClaimOverlay";
 
+type CoreProvider = {
+  request: (args: {
+    method: string;
+    params?: unknown[];
+  }) => Promise<unknown>;
+  on?: (
+    event: string,
+    handler: (...args: unknown[]) => void
+  ) => void;
+  removeListener?: (
+    event: string,
+    handler: (...args: unknown[]) => void
+  ) => void;
+};
+
+declare global {
+  interface Window {
+    avalanche?: CoreProvider;
+  }
+}
+
+
+
 import {
   ArrowUpRight,
   Check,
@@ -44,6 +67,93 @@ const steps = [
 ];
 
 export default function Page() {
+
+// Inside your existing component:
+const [walletAddress, setWalletAddress] = useState("");
+//const [isCopied, setIsCopied] = useState(false);
+const [walletError, setWalletError] = useState("");
+  const connectCoreWallet = async () => {
+    setWalletError("");
+  
+    try {
+      const provider = window.avalanche;
+  
+      if (!provider) {
+        window.open("https://core.app/", "_blank");
+        setWalletError(
+          "Core Wallet not detected. Install the Core browser extension and try again."
+        );
+        return;
+      }
+  
+      const accounts = (await provider.request({
+        method: "eth_requestAccounts",
+      })) as string[];
+  
+      if (!accounts?.length) {
+        setWalletError("No wallet account was returned.");
+        return;
+      }
+  
+      setWalletAddress(accounts[0]);
+    } catch (error) {
+      setWalletError(
+        error instanceof Error
+          ? error.message
+          : "Unable to connect Core Wallet."
+      );
+    }
+  };
+  
+  const copyAddress = async () => {
+    if (!walletAddress) {
+      await connectCoreWallet();
+      return;
+    }
+  
+    try {
+      await navigator.clipboard.writeText(walletAddress);
+      setIsCopied(true);
+  
+      window.setTimeout(() => {
+        setIsCopied(false);
+      }, 2000);
+    } catch {
+      setWalletError("Unable to copy wallet address.");
+    }
+  };
+  
+  useEffect(() => {
+    const provider = window.avalanche;
+    if (!provider) return;
+  
+    const handleAccounts = (...args: unknown[]) => {
+      const accounts = args[0] as string[];
+  
+      setWalletAddress(accounts?.[0] ?? "");
+      setIsCopied(false);
+    };
+  
+    provider.on?.("accountsChanged", handleAccounts);
+  
+    // Restore an already-authorised account without prompting.
+    provider
+      .request({ method: "eth_accounts" })
+      .then((accounts) => {
+        const list = accounts as string[];
+        setWalletAddress(list?.[0] ?? "");
+      })
+      .catch(() => {});
+  
+    return () => {
+      provider.removeListener?.(
+        "accountsChanged",
+        handleAccounts
+      );
+    };
+  }, []);
+
+
   const [isMenuOpen, setIsMenuOpen] =
     useState(false);
 
@@ -99,18 +209,6 @@ export default function Page() {
    * ------------------------------------------------
    */
 
-  function copyAddress() {
-    navigator.clipboard?.writeText(
-      "0x4f8A...91c2"
-    );
-
-    setIsCopied(true);
-
-    window.setTimeout(
-      () => setIsCopied(false),
-      1800
-    );
-  }
 
   /*
    * ------------------------------------------------
@@ -269,22 +367,42 @@ export default function Page() {
                 </a>
 
                 <button
-                  onClick={copyAddress}
-                  className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
-                  aria-label="Copy wallet address"
-                >
-                  <span className="size-2 rounded-full bg-[#45c87a]" />
+  onClick={walletAddress ? copyAddress : connectCoreWallet}
+  className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
+  aria-label={
+    walletAddress
+      ? "Copy wallet address"
+      : "Connect Core Wallet"
+  }
+>
+  <span
+    className={`size-2 rounded-full ${
+      walletAddress
+        ? "bg-[#45c87a]"
+        : "bg-gray-400"
+    }`}
+  />
 
-                  {isCopied
-                    ? "Copied"
-                    : "0x4f8A...91c2"}
+  {walletAddress
+    ? isCopied
+      ? "Copied"
+      : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+    : "Connect Core Wallet"}
 
-                  {isCopied ? (
-                    <Check className="size-4 text-[#45c87a]" />
-                  ) : (
-                    <Copy className="size-4 text-[#8a9bab]" />
-                  )}
-                </button>
+  {walletAddress ? (
+    isCopied ? (
+      <Check className="size-4 text-[#45c87a]" />
+    ) : (
+      <Copy className="size-4 text-[#8a9bab]" />
+    )
+  ) : null}
+</button>
+
+{walletError && (
+  <p className="mt-2 text-sm text-red-600" role="alert">
+    {walletError}
+  </p>
+)}
               </div>
             ) : (
               <button
