@@ -68,6 +68,47 @@ const steps = [
 
 export default function Page() {
 
+  const [isLinkedInAuthenticated, setIsLinkedInAuthenticated] =
+  useState(false);
+
+const [authChecked, setAuthChecked] = useState(false);
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function checkLinkedInAuth() {
+    try {
+      const response = await fetch("/api/linkedin/me", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!cancelled) {
+        setIsLinkedInAuthenticated(
+          response.ok && data.authenticated === true
+        );
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setIsLinkedInAuthenticated(false);
+      }
+    } finally {
+      if (!cancelled) {
+        setAuthChecked(true);
+      }
+    }
+  }
+
+  checkLinkedInAuth();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 // Inside your existing component:
 const [walletAddress, setWalletAddress] = useState("");
 //const [isCopied, setIsCopied] = useState(false);
@@ -465,21 +506,58 @@ const [walletError, setWalletError] = useState("");
               FAQ
             </a>
 
-            {isConnected ? (
-              <a
-                href="/profile"
-                className="rounded-full border border-[#dfe5eb] px-4 py-3 text-center"
-              >
-                My Profile
-              </a>
-            ) : (
-              <button
-                onClick={handleLogin}
-                className="rounded-full bg-[#1e63f1] px-4 py-3 text-white"
-              >
-                Sign in with LinkedIn
-              </button>
-            )}
+            {!authChecked ? null : isLinkedInAuthenticated ? (
+  <div className="flex items-center gap-2">
+    <a
+      href="/profile"
+      className="hidden rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:block"
+    >
+      My Profile
+    </a>
+
+    <button
+      onClick={walletAddress ? copyAddress : connectCoreWallet}
+      className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
+      aria-label={
+        walletAddress
+          ? "Copy wallet address"
+          : "Connect Core Wallet"
+      }
+    >
+      <span
+        className={`size-2 rounded-full ${
+          walletAddress ? "bg-[#45c87a]" : "bg-gray-400"
+        }`}
+      />
+
+      {walletAddress
+        ? isCopied
+          ? "Copied"
+          : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+        : "Connect Core Wallet"}
+
+      {walletAddress &&
+        (isCopied ? (
+          <Check className="size-4 text-[#45c87a]" />
+        ) : (
+          <Copy className="size-4 text-[#8a9bab]" />
+        ))}
+    </button>
+
+    {walletError && (
+      <p className="mt-2 text-sm text-red-600" role="alert">
+        {walletError}
+      </p>
+    )}
+  </div>
+) : (
+  <button
+    onClick={handleLogin}
+    className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
+  >
+    Sign in with LinkedIn
+  </button>
+)}
           </div>
         )}
 
