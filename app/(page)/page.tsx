@@ -280,7 +280,7 @@ export default function Page() {
     async function checkLinkedInSession() {
       try {
         const response = await fetch(
-          "/api/linkedin/me",
+          "/api/linkedin/profile",
           {
             method: "GET",
             credentials: "include",
@@ -297,7 +297,7 @@ export default function Page() {
 
         setIsLinkedInAuthenticated(
           response.ok &&
-            data.authenticated === true
+            data.hasProfile === true
         );
       } catch (error) {
         console.error(
