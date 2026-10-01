@@ -279,7 +279,7 @@ export async function GET(req: NextRequest) {
      * cookies if they still exist.
      * ------------------------------------------------
      */
-
+/*
     response.cookies.delete(
       "linkedin_email"
     );
@@ -291,11 +291,11 @@ export async function GET(req: NextRequest) {
     response.cookies.delete(
       "linkedin_name"
     );
-
+*/
     response.cookies.delete(
       "linkedin_picture"
     );
-
+/*
     response.cookies.delete(
       "linkedin_first_name"
     );
@@ -303,7 +303,7 @@ export async function GET(req: NextRequest) {
     response.cookies.delete(
       "linkedin_last_name"
     );
-
+*/
     /*
      * ------------------------------------------------
      * Send user to the appropriate page
