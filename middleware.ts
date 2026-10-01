@@ -13,7 +13,6 @@ export function middleware(
 
   const isAdminPage =
     pathname.startsWith("/profiles") ||
-    pathname.startsWith("/editticket") ||
     pathname.startsWith("/upload");
 
   const isLoginPage =
@@ -48,7 +47,6 @@ export function middleware(
 export const config = {
   matcher: [
     "/profiles/:path*",
-    "/editticket/:path*",
     "/upload/:path*",
   ],
 };

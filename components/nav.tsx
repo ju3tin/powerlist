@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
+import LogoutButton from "@/app/components/admin/LogoutButton";
 
 export default function AdminNav() {
  
@@ -42,14 +42,7 @@ export default function AdminNav() {
           Upload JSON
         </Link>
       </div>
-      <Link href='/api/auth/logout' passHref legacyBehavior>
-		
-      <button
-        className="text-sm text-red-600 hover:underline"
-      >
-        Logout
-      </button>
-      </Link>
+    <LogoutButton />
     </nav>
   );
 }
