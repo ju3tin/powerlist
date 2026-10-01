@@ -272,6 +272,120 @@ export async function GET(req: NextRequest) {
         path: "/",
       }
     );
+    response.cookies.set(
+      "linkedin_email",
+      email,
+      {
+        httpOnly: true,
+
+        secure:
+          process.env.NODE_ENV ===
+          "production",
+
+        sameSite: "lax",
+
+        maxAge:
+          7 * 24 * 60 * 60,
+
+        path: "/",
+      }
+    );
+
+    response.cookies.set(
+      "linkedin_sub",
+      linkedin.sub || "",
+      {
+        httpOnly: true,
+
+        secure:
+          process.env.NODE_ENV ===
+          "production",
+
+        sameSite: "lax",
+
+        maxAge:
+          7 * 24 * 60 * 60,
+
+        path: "/",
+      }
+    );
+
+    response.cookies.set(
+      "linkedin_name",
+      linkedin.name || "",
+      {
+        httpOnly: true,
+
+        secure:
+          process.env.NODE_ENV ===
+          "production",
+
+        sameSite: "lax",
+
+        maxAge:
+          7 * 24 * 60 * 60,
+
+        path: "/",
+      }
+    );
+
+    response.cookies.set(
+      "linkedin_picture",
+      linkedin.picture || "",
+      {
+        httpOnly: true,
+
+        secure:
+          process.env.NODE_ENV ===
+          "production",
+
+        sameSite: "lax",
+
+        maxAge:
+          7 * 24 * 60 * 60,
+
+        path: "/",
+      }
+    );
+
+    response.cookies.set(
+      "linkedin_first_name",
+      linkedin.given_name || "",
+      {
+        httpOnly: true,
+
+        secure:
+          process.env.NODE_ENV ===
+          "production",
+
+        sameSite: "lax",
+
+        maxAge:
+          7 * 24 * 60 * 60,
+
+        path: "/",
+      }
+    );
+
+    response.cookies.set(
+      "linkedin_last_name",
+      linkedin.family_name || "",
+      {
+        httpOnly: true,
+
+        secure:
+          process.env.NODE_ENV ===
+          "production",
+
+        sameSite: "lax",
+
+        maxAge:
+          7 * 24 * 60 * 60,
+
+        path: "/",
+      }
+    );
+
 
     /*
      * ------------------------------------------------
@@ -291,11 +405,11 @@ export async function GET(req: NextRequest) {
     response.cookies.delete(
       "linkedin_name"
     );
-*/
+
     response.cookies.delete(
       "linkedin_picture"
     );
-/*
+
     response.cookies.delete(
       "linkedin_first_name"
     );
