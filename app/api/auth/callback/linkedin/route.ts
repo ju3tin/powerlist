@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     if (!linkedin.email) {
       return NextResponse.redirect(
         new URL(
-          "/login?error=no_linkedin_email",
+          "/?error=no_linkedin_email",
           req.url
         )
       );
