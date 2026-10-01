@@ -16,27 +16,33 @@ export default function AdminNav() {
     <nav className="bg-white border-b px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-6">
         <Link
-          href="/profiles"
+          href="/admin/dashboard"
           className="font-semibold text-lg"
         >
           Profile Manager
         </Link>
 
         <Link
-          href="/profiles"
+          href="/admin/profiles"
           className="text-sm text-blue-600 font-medium"
         >
           Profiles
         </Link>
         <Link
-          href="/profiles/new"
+          href="/admin/profiles/new"
           className="text-sm text-gray-600 hover:text-blue-600"
         >
           New Profile
         </Link>
+        <Link
+          href="/admin/editticket"
+          className="text-sm text-gray-600 hover:text-blue-600"
+        >
+          Ticket Editor
+        </Link>
 
         <Link
-          href="/upload"
+          href="/admin/upload"
           className="text-sm text-gray-600 hover:text-blue-600"
         >
           Upload JSON
