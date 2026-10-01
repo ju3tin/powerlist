@@ -10,15 +10,25 @@ import HeroSection from "@/components/hero1";
 import PageStyle from "./PageStyle";
 import ClaimOverlay from "@/app/components/ClaimOverlay";
 
+import {
+  BriefcaseBusiness,
+  Check,
+  Copy,
+  Menu,
+  X,
+} from "lucide-react";
+
 type CoreProvider = {
   request: (args: {
     method: string;
     params?: unknown[];
   }) => Promise<unknown>;
+
   on?: (
     event: string,
     handler: (...args: unknown[]) => void
   ) => void;
+
   removeListener?: (
     event: string,
     handler: (...args: unknown[]) => void
@@ -30,23 +40,6 @@ declare global {
     avalanche?: CoreProvider;
   }
 }
-
-
-
-import {
-  ArrowUpRight,
-  Check,
-  ChevronRight,
-  Copy,
-  ExternalLink,
-  BriefcaseBusiness,
-  LockKeyhole,
-  Menu,
-  Sparkles,
-  Ticket,
-  WalletCards,
-  X,
-} from "lucide-react";
 
 const steps = [
   {
@@ -67,113 +60,75 @@ const steps = [
 ];
 
 export default function Page() {
+  /*
+   * ------------------------------------------------
+   * LinkedIn authentication
+   * ------------------------------------------------
+   *
+   * IMPORTANT:
+   * This is completely separate from the Core Wallet.
+   *
+   * /api/linkedin/me checks the secure
+   * linkedin_session cookie on the server.
+   */
 
-  const [isLinkedInAuthenticated, setIsLinkedInAuthenticated] =
-  useState(false);
+  const [
+    isLinkedInAuthenticated,
+    setIsLinkedInAuthenticated,
+  ] = useState(false);
 
-const [authChecked, setAuthChecked] = useState(false);
+  const [authChecked, setAuthChecked] =
+    useState(false);
 
-useEffect(() => {
-  let cancelled = false;
+  /*
+   * ------------------------------------------------
+   * Core Wallet
+   * ------------------------------------------------
+   */
 
-  async function checkMe() {
-    try {
-      const response = await fetch("/api/linkedin/me", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
+  const [walletAddress, setWalletAddress] =
+    useState("");
 
-      const data = await response.json();
+  const [isCopied, setIsCopied] =
+    useState(false);
 
-      if (!cancelled) {
-        setIsLinkedInAuthenticated(
-          response.ok && data.authenticated === true
-        );
-      }
-    } catch {
-      if (!cancelled) {
-        setIsLinkedInAuthenticated(false);
-      }
-    } finally {
-      if (!cancelled) {
-        setAuthChecked(true);
-      }
-    }
-  }
+  const [walletError, setWalletError] =
+    useState("");
 
-  checkMe();
-
-  return () => {
-    cancelled = true;
-  };
-}, []);
-
-
-useEffect(() => {
-  let cancelled = false;
-
-  async function checkLinkedInAuth() {
-    try {
-      const response = await fetch("/api/linkedin/me", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const data = await response.json();
-
-      if (!cancelled) {
-        setIsLinkedInAuthenticated(
-          response.ok && data.authenticated === true
-        );
-      }
-    } catch (error) {
-      if (!cancelled) {
-        setIsLinkedInAuthenticated(false);
-      }
-    } finally {
-      if (!cancelled) {
-        setAuthChecked(true);
-      }
-    }
-  }
-
-  checkLinkedInAuth();
-
-  return () => {
-    cancelled = true;
-  };
-}, []);
-
-// Inside your existing component:
-const [walletAddress, setWalletAddress] = useState("");
-//const [isCopied, setIsCopied] = useState(false);
-const [walletError, setWalletError] = useState("");
   const connectCoreWallet = async () => {
     setWalletError("");
-  
+
     try {
       const provider = window.avalanche;
-  
+
       if (!provider) {
-        window.open("https://core.app/", "_blank");
+        window.open(
+          "https://core.app/",
+          "_blank"
+        );
+
         setWalletError(
           "Core Wallet not detected. Install the Core browser extension and try again."
         );
+
         return;
       }
-  
-      const accounts = (await provider.request({
-        method: "eth_requestAccounts",
-      })) as string[];
-  
+
+      const accounts =
+        (await provider.request({
+          method: "eth_requestAccounts",
+        })) as string[];
+
       if (!accounts?.length) {
-        setWalletError("No wallet account was returned.");
+        setWalletError(
+          "No wallet account was returned."
+        );
+
         return;
       }
-  
+
       setWalletAddress(accounts[0]);
+      setIsCopied(false);
     } catch (error) {
       setWalletError(
         error instanceof Error
@@ -182,47 +137,71 @@ const [walletError, setWalletError] = useState("");
       );
     }
   };
-  
+
   const copyAddress = async () => {
     if (!walletAddress) {
       await connectCoreWallet();
       return;
     }
-  
+
     try {
-      await navigator.clipboard.writeText(walletAddress);
+      await navigator.clipboard.writeText(
+        walletAddress
+      );
+
       setIsCopied(true);
-  
+
       window.setTimeout(() => {
         setIsCopied(false);
       }, 2000);
     } catch {
-      setWalletError("Unable to copy wallet address.");
+      setWalletError(
+        "Unable to copy wallet address."
+      );
     }
   };
-  
+
+  /*
+   * Restore Core Wallet connection.
+   */
+
   useEffect(() => {
     const provider = window.avalanche;
+
     if (!provider) return;
-  
-    const handleAccounts = (...args: unknown[]) => {
-      const accounts = args[0] as string[];
-  
-      setWalletAddress(accounts?.[0] ?? "");
+
+    const handleAccounts = (
+      ...args: unknown[]
+    ) => {
+      const accounts =
+        args[0] as string[];
+
+      setWalletAddress(
+        accounts?.[0] ?? ""
+      );
+
       setIsCopied(false);
     };
-  
-    provider.on?.("accountsChanged", handleAccounts);
-  
-    // Restore an already-authorised account without prompting.
+
+    provider.on?.(
+      "accountsChanged",
+      handleAccounts
+    );
+
     provider
-      .request({ method: "eth_accounts" })
+      .request({
+        method: "eth_accounts",
+      })
       .then((accounts) => {
-        const list = accounts as string[];
-        setWalletAddress(list?.[0] ?? "");
+        const list =
+          accounts as string[];
+
+        setWalletAddress(
+          list?.[0] ?? ""
+        );
       })
       .catch(() => {});
-  
+
     return () => {
       provider.removeListener?.(
         "accountsChanged",
@@ -231,6 +210,11 @@ const [walletError, setWalletError] = useState("");
     };
   }, []);
 
+  /*
+   * ------------------------------------------------
+   * UI state
+   * ------------------------------------------------
+   */
 
   const [isMenuOpen, setIsMenuOpen] =
     useState(false);
@@ -238,11 +222,11 @@ const [walletError, setWalletError] = useState("");
   const [isSignInOpen, setIsSignInOpen] =
     useState(false);
 
-  const [isConnected, setIsConnected] =
-    useState(false);
-
-  const [isCopied, setIsCopied] =
-    useState(false);
+  /*
+   * ------------------------------------------------
+   * Old verification/badge state
+   * ------------------------------------------------
+   */
 
   const [linkedinUrl, setLinkedinUrl] =
     useState("");
@@ -283,15 +267,72 @@ const [walletError, setWalletError] = useState("");
 
   /*
    * ------------------------------------------------
-   * Copy wallet address
+   * Check the real LinkedIn session
    * ------------------------------------------------
+   *
+   * This is the ONLY check used to decide whether
+   * "My Profile" or "Sign in with LinkedIn" appears.
    */
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkLinkedInSession() {
+      try {
+        const response = await fetch(
+          "/api/linkedin/me",
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (cancelled) {
+          return;
+        }
+
+        setIsLinkedInAuthenticated(
+          response.ok &&
+            data.authenticated === true
+        );
+      } catch (error) {
+        console.error(
+          "LinkedIn authentication check failed:",
+          error
+        );
+
+        if (!cancelled) {
+          setIsLinkedInAuthenticated(
+            false
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setAuthChecked(true);
+        }
+      }
+    }
+
+    checkLinkedInSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /*
    * ------------------------------------------------
    * Existing Powerlist verification flow
    * ------------------------------------------------
+   *
+   * Kept here because your existing HeroSection/
+   * badge flow may still use this state.
+   *
+   * It does NOT control LinkedIn authentication.
    */
 
   async function verifyProfile(
@@ -299,7 +340,9 @@ const [walletError, setWalletError] = useState("");
   ) {
     event.preventDefault();
 
-    setVerificationState("loading");
+    setVerificationState(
+      "loading"
+    );
 
     try {
       const response = await fetch(
@@ -330,55 +373,14 @@ const [walletError, setWalletError] = useState("");
       );
 
       if (result.eligible) {
-        setIsConnected(true);
         setBadgeClaimed(true);
       }
     } catch {
-      setVerificationState("error");
+      setVerificationState(
+        "error"
+      );
     }
   }
-
-  /*
-   * Check whether the user has a valid
-   * server-side LinkedIn session.
-   *
-   * We don't read the cookie here.
-   *
-   * /api/linkedin/me validates it on
-   * the server.
-   */
-
-  useEffect(() => {
-    async function checkAuthentication() {
-      try {
-        const response =
-          await fetch(
-            "/api/linkedin/me",
-            {
-              credentials: "include",
-              cache: "no-store",
-            }
-          );
-
-        if (!response.ok) {
-          return;
-        }
-
-        const data =
-          await response.json();
-
-        if (data.authenticated) {
-          setIsConnected(true);
-        } else {
-          setIsConnected(false);
-        }
-      } catch {
-        setIsConnected(false);
-      }
-    }
-
-    checkAuthentication();
-  }, []);
 
   return (
     <>
@@ -386,9 +388,7 @@ const [walletError, setWalletError] = useState("");
 
       <main className="min-h-screen overflow-hidden bg-[#f7f8fa] text-[#10253f]">
 
-        {/* ---------------------------------------- */}
         {/* HEADER */}
-        {/* ---------------------------------------- */}
 
         <header className="relative z-20 mx-auto flex max-w-[1280px] items-center justify-between px-6 py-6 lg:px-10">
 
@@ -434,60 +434,79 @@ const [walletError, setWalletError] = useState("");
 
           <div className="flex items-center gap-3">
 
-          {!authChecked ? null : isLinkedInAuthenticated ? (
-  <div className="flex items-center gap-2">
-    <a
-      href="/profile"
-      className="hidden rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:block"
-    >
-      My Profile
-    </a>
+            {/* DESKTOP AUTH BUTTON */}
 
-    <button
-      onClick={walletAddress ? copyAddress : connectCoreWallet}
-      className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
-      aria-label={
-        walletAddress
-          ? "Copy wallet address"
-          : "Connect Core Wallet"
-      }
-    >
-      <span
-        className={`size-2 rounded-full ${
-          walletAddress ? "bg-[#45c87a]" : "bg-gray-400"
-        }`}
-      />
+            {!authChecked ? (
+              <div
+                className="hidden h-10 w-36 rounded-full bg-transparent md:block"
+                aria-hidden="true"
+              />
+            ) : isLinkedInAuthenticated ? (
+              <div className="flex items-center gap-2">
 
-      {walletAddress
-        ? isCopied
-          ? "Copied"
-          : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-        : "Connect Core Wallet"}
+                <a
+                  href="/profile"
+                  className="hidden rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:block"
+                >
+                  My Profile
+                </a>
 
-      {walletAddress &&
-        (isCopied ? (
-          <Check className="size-4 text-[#45c87a]" />
-        ) : (
-          <Copy className="size-4 text-[#8a9bab]" />
-        ))}
-    </button>
+                <button
+                  type="button"
+                  onClick={
+                    walletAddress
+                      ? copyAddress
+                      : connectCoreWallet
+                  }
+                  className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
+                  aria-label={
+                    walletAddress
+                      ? "Copy wallet address"
+                      : "Connect Core Wallet"
+                  }
+                >
+                  <span
+                    className={`size-2 rounded-full ${
+                      walletAddress
+                        ? "bg-[#45c87a]"
+                        : "bg-gray-400"
+                    }`}
+                  />
 
-    {walletError && (
-      <p className="mt-2 text-sm text-red-600" role="alert">
-        {walletError}
-      </p>
-    )}
-  </div>
-) : (
-  <button
-    onClick={handleLogin}
-    className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
-  >
-    Sign in with LinkedIn
-  </button>
-)}
+                  {walletAddress
+                    ? isCopied
+                      ? "Copied"
+                      : `${walletAddress.slice(
+                          0,
+                          6
+                        )}...${walletAddress.slice(
+                          -4
+                        )}`
+                    : "Connect Core Wallet"}
+
+                  {walletAddress &&
+                    (isCopied ? (
+                      <Check className="size-4 text-[#45c87a]" />
+                    ) : (
+                      <Copy className="size-4 text-[#8a9bab]" />
+                    ))}
+                </button>
+
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogin}
+                className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
+              >
+                Sign in with LinkedIn
+              </button>
+            )}
+
+            {/* MOBILE MENU BUTTON */}
 
             <button
+              type="button"
               onClick={() =>
                 setIsMenuOpen(
                   !isMenuOpen
@@ -502,15 +521,14 @@ const [walletError, setWalletError] = useState("");
                 <Menu className="size-5" />
               )}
             </button>
+
           </div>
         </header>
 
-        {/* ---------------------------------------- */}
         {/* MOBILE MENU */}
-        {/* ---------------------------------------- */}
 
         {isMenuOpen && (
-          <div className="absolute right-6 top-20 z-30 flex w-64 flex-col gap-4 rounded-2xl border border-[#dfe5eb] bg-white p-5 text-sm font-semibold shadow-xl md:hidden">
+          <div className="absolute right-6 top-20 z-30 flex w-72 flex-col gap-4 rounded-2xl border border-[#dfe5eb] bg-white p-5 text-sm font-semibold shadow-xl md:hidden">
 
             <a
               href="#about"
@@ -539,64 +557,80 @@ const [walletError, setWalletError] = useState("");
               FAQ
             </a>
 
-            {!authChecked ? null : isLinkedInAuthenticated ? (
-  <div className="flex items-center gap-2">
-    <a
-      href="/profile"
-      className="hidden rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:block"
-    >
-      My Profile
-    </a>
+            <div className="border-t border-[#e5e9ee] pt-4">
 
-    <button
-      onClick={walletAddress ? copyAddress : connectCoreWallet}
-      className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
-      aria-label={
-        walletAddress
-          ? "Copy wallet address"
-          : "Connect Core Wallet"
-      }
-    >
-      <span
-        className={`size-2 rounded-full ${
-          walletAddress ? "bg-[#45c87a]" : "bg-gray-400"
-        }`}
-      />
+              {!authChecked ? (
+                <div className="h-10" />
+              ) : isLinkedInAuthenticated ? (
+                <div className="flex flex-col gap-3">
 
-      {walletAddress
-        ? isCopied
-          ? "Copied"
-          : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-        : "Connect Core Wallet"}
+                  <a
+                    href="/profile"
+                    className="rounded-full border border-[#dfe5eb] bg-white px-4 py-3 text-center text-sm font-semibold"
+                    onClick={() =>
+                      setIsMenuOpen(false)
+                    }
+                  >
+                    My Profile
+                  </a>
 
-      {walletAddress &&
-        (isCopied ? (
-          <Check className="size-4 text-[#45c87a]" />
-        ) : (
-          <Copy className="size-4 text-[#8a9bab]" />
-        ))}
-    </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (walletAddress) {
+                        copyAddress();
+                      } else {
+                        connectCoreWallet();
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-3 text-sm font-semibold"
+                  >
+                    <span
+                      className={`size-2 rounded-full ${
+                        walletAddress
+                          ? "bg-[#45c87a]"
+                          : "bg-gray-400"
+                      }`}
+                    />
 
-    {walletError && (
-      <p className="mt-2 text-sm text-red-600" role="alert">
-        {walletError}
-      </p>
-    )}
-  </div>
-) : (
-  <button
-    onClick={handleLogin}
-    className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
-  >
-    Sign in with LinkedIn
-  </button>
-)}
+                    {walletAddress
+                      ? isCopied
+                        ? "Copied"
+                        : `${walletAddress.slice(
+                            0,
+                            6
+                          )}...${walletAddress.slice(
+                            -4
+                          )}`
+                      : "Connect Core Wallet"}
+
+                    {walletAddress &&
+                      (isCopied ? (
+                        <Check className="size-4 text-[#45c87a]" />
+                      ) : (
+                        <Copy className="size-4 text-[#8a9bab]" />
+                      ))}
+                  </button>
+
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleLogin();
+                  }}
+                  className="w-full rounded-full bg-[#1e63f1] px-5 py-3 text-sm font-bold text-white"
+                >
+                  Sign in with LinkedIn
+                </button>
+              )}
+
+            </div>
           </div>
         )}
 
-        {/* ---------------------------------------- */}
         {/* HERO */}
-        {/* ---------------------------------------- */}
 
         <HeroSection
           verifiedProfile={{
@@ -607,9 +641,7 @@ const [walletError, setWalletError] = useState("");
           }
         />
 
-        {/* ---------------------------------------- */}
         {/* ABOUT */}
-        {/* ---------------------------------------- */}
 
         <section
           id="about"
@@ -630,33 +662,29 @@ const [walletError, setWalletError] = useState("");
             </div>
 
             <div className="grid gap-6 sm:grid-cols-3">
-              {steps.map(
-                (step) => (
-                  <article
-                    key={step.number}
-                    className="border-t-2 border-[#dce9ff] pt-5"
-                  >
-                    <p className="text-sm font-bold text-[#1e63f1]">
-                      {step.number}
-                    </p>
+              {steps.map((step) => (
+                <article
+                  key={step.number}
+                  className="border-t-2 border-[#dce9ff] pt-5"
+                >
+                  <p className="text-sm font-bold text-[#1e63f1]">
+                    {step.number}
+                  </p>
 
-                    <h3 className="mt-8 text-base font-bold">
-                      {step.title}
-                    </h3>
+                  <h3 className="mt-8 text-base font-bold">
+                    {step.title}
+                  </h3>
 
-                    <p className="mt-3 text-sm leading-6 text-[#718294]">
-                      {step.text}
-                    </p>
-                  </article>
-                )
-              )}
+                  <p className="mt-3 text-sm leading-6 text-[#718294]">
+                    {step.text}
+                  </p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* ---------------------------------------- */}
         {/* HOW IT WORKS */}
-        {/* ---------------------------------------- */}
 
         <section
           id="how-it-works"
@@ -684,9 +712,7 @@ const [walletError, setWalletError] = useState("");
           </div>
         </section>
 
-        {/* ---------------------------------------- */}
         {/* FOOTER */}
-        {/* ---------------------------------------- */}
 
         <footer
           id="admin"
@@ -706,6 +732,7 @@ const [walletError, setWalletError] = useState("");
             </div>
 
             <div className="flex gap-6 text-sm text-[#b7c4d0]">
+
               <a
                 href="#about"
                 className="hover:text-white"
@@ -726,13 +753,12 @@ const [walletError, setWalletError] = useState("");
               >
                 Admin
               </a>
+
             </div>
           </div>
         </footer>
 
-        {/* ---------------------------------------- */}
         {/* BADGE */}
-        {/* ---------------------------------------- */}
 
         {badgeClaimed &&
           verifiedProfile && (
@@ -743,6 +769,7 @@ const [walletError, setWalletError] = useState("");
               <div className="h-2 bg-[#1e63f1]" />
 
               <div className="flex gap-4 p-5">
+
                 <img
                   src={
                     verifiedProfile.featured_image ||
@@ -753,14 +780,13 @@ const [walletError, setWalletError] = useState("");
                 />
 
                 <div className="min-w-0">
+
                   <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#1e63f1]">
                     Badge created
                   </p>
 
                   <h2 className="mt-1 truncate text-lg font-bold text-[#10253f]">
-                    {
-                      verifiedProfile.title
-                    }
+                    {verifiedProfile.title}
                   </h2>
 
                   <p className="mt-1 text-xs text-[#718294]">
@@ -771,14 +797,13 @@ const [walletError, setWalletError] = useState("");
                   <p className="mt-3 inline-flex rounded-full bg-[#effcf4] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] text-[#176b3a]">
                     Avalanche · 1 of 1
                   </p>
+
                 </div>
               </div>
             </section>
           )}
 
-        {/* ---------------------------------------- */}
-        {/* NORMAL SIGN-IN MODAL */}
-        {/* ---------------------------------------- */}
+        {/* SIGN-IN MODAL */}
 
         {isSignInOpen && (
           <div
@@ -798,6 +823,7 @@ const [walletError, setWalletError] = useState("");
               aria-labelledby="signin-title"
               className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
             >
+
               <button
                 type="button"
                 onClick={() =>
@@ -831,18 +857,16 @@ const [walletError, setWalletError] = useState("");
                 className="mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
               >
                 <BriefcaseBusiness className="size-5" />
-
                 Continue with LinkedIn
               </button>
+
             </div>
           </div>
         )}
 
       </main>
 
-      {/* ---------------------------------------- */}
       {/* CLAIM OVERLAY */}
-      {/* ---------------------------------------- */}
 
       <ClaimOverlay />
     </>
