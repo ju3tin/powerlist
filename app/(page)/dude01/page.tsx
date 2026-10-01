@@ -1,31 +1,19 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import {
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
-
+import { Suspense, FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import LinkedInLoginButton from "@/components/LinkedInLoginButton1";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const isClaiming =
-    searchParams.get("claim") === "true";
+  const isClaiming = searchParams.get("claim") === "true";
+  const errorParam = searchParams.get("error");
 
-  const errorParam =
-    searchParams.get("error");
-
-  const [linkedinUrl, setLinkedinUrl] =
-    useState("");
-
-  const [claimError, setClaimError] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(false);
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [claimError, setClaimError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function authenticationError() {
     switch (errorParam) {
@@ -54,7 +42,6 @@ export default function LoginPage() {
       setClaimError(
         "Please enter your LinkedIn profile URL."
       );
-
       return;
     }
 
@@ -65,42 +52,30 @@ export default function LoginPage() {
         "/api/claimprofile",
         {
           method: "POST",
-
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
-
           credentials: "include",
-
           body: JSON.stringify({
-            linkedinUrl:
-              linkedinUrl.trim(),
+            linkedinUrl: linkedinUrl.trim(),
           }),
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         setClaimError(
-          data.error ||
-            "Unable to claim profile."
+          data.error || "Unable to claim profile."
         );
-
         return;
       }
 
-      // Successfully claimed
       router.push(
         `/profiles/${data.profile.slug}`
       );
     } catch (error) {
-      console.error(
-        "Claim error:",
-        error
-      );
+      console.error("Claim error:", error);
 
       setClaimError(
         "Something went wrong. Please try again."
@@ -109,10 +84,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
-
-  // ==================================================
-  // CLAIM PROFILE
-  // ==================================================
 
   if (isClaiming) {
     return (
@@ -124,20 +95,17 @@ export default function LoginPage() {
             </h1>
 
             <p className="mt-3 text-gray-600">
-              Your LinkedIn account has been
-              authenticated.
+              Your LinkedIn account has been authenticated.
             </p>
 
             <p className="mt-3 text-gray-600">
-              We couldn't find your LinkedIn
-              email on an existing Powerlist
-              profile.
+              We couldn't find your LinkedIn email on an
+              existing Powerlist profile.
             </p>
 
             <p className="mt-3 text-gray-600">
-              Enter the LinkedIn profile URL
-              listed on your Powerlist profile
-              to claim it.
+              Enter the LinkedIn profile URL listed on
+              your Powerlist profile to claim it.
             </p>
           </div>
 
@@ -154,9 +122,7 @@ export default function LoginPage() {
               type="url"
               value={linkedinUrl}
               onChange={(event) =>
-                setLinkedinUrl(
-                  event.target.value
-                )
+                setLinkedinUrl(event.target.value)
               }
               placeholder="https://www.linkedin.com/in/your-name/"
               className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black outline-none focus:border-[#0A66C2]"
@@ -172,8 +138,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={
-                loading ||
-                !linkedinUrl.trim()
+                loading || !linkedinUrl.trim()
               }
               className="mt-5 w-full rounded-lg bg-[#0A66C2] px-6 py-3 font-semibold text-white transition hover:bg-[#004182] disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -185,9 +150,7 @@ export default function LoginPage() {
 
           <button
             type="button"
-            onClick={() =>
-              router.push("/login")
-            }
+            onClick={() => router.push("/login")}
             className="mt-5 w-full text-sm text-gray-500 hover:text-black"
           >
             Back to login
@@ -197,12 +160,7 @@ export default function LoginPage() {
     );
   }
 
-  // ==================================================
-  // NORMAL LOGIN
-  // ==================================================
-
-  const authError =
-    authenticationError();
+  const authError = authenticationError();
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
@@ -213,8 +171,7 @@ export default function LoginPage() {
           </h1>
 
           <p className="mt-3 text-gray-600">
-            Sign in with LinkedIn to access
-            your Powerlist profile.
+            Sign in with LinkedIn to access your Powerlist profile.
           </p>
         </div>
 
@@ -229,11 +186,26 @@ export default function LoginPage() {
         />
 
         <p className="mt-6 text-center text-xs text-gray-500">
-          If your profile hasn't been claimed
-          yet, we'll help you claim it after
-          you sign in with LinkedIn.
+          If your profile hasn't been claimed yet,
+          we'll help you claim it after you sign in with LinkedIn.
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-gray-600">
+            Loading...
+          </div>
+        </main>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
