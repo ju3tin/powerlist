@@ -21,7 +21,7 @@ export default function LogoutButton() {
         throw new Error("Logout failed");
       }
 
-      router.replace("/admin/login");
+      router.replace("/login2");
       router.refresh();
     } catch {
       setLoading(false);
