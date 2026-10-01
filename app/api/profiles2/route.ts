@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     // =========================================================
 
     const search = searchParams.get("search");
-
+    const email = searchParams.get("email");
     const title = searchParams.get("title");
     const slug = searchParams.get("slug");
     const category = searchParams.get("power_list_category");
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
         { slug: regex },
         { full_slug: regex },
         { link: regex },
+        { email: regex },
         { power_list_category: regex },
         { featured_image: regex },
         { company_logo: regex },
@@ -79,6 +80,9 @@ export async function GET(req: NextRequest) {
 
     if (title) {
       query.title = new RegExp(escapeRegex(title), "i");
+    }
+    if (email) {
+      query.email = new RegExp(escapeRegex(email), "i");
     }
 
     if (slug) {
