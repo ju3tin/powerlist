@@ -1,7 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
-import Providers from "./providers";   // ← add this
+import { Providers } from "./providers";   // ← add this
 
 export const metadata: Metadata = {
   title: 'Women in FinTech Powerlist 2026 | Innovate Finance',
