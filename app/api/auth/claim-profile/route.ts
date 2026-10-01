@@ -1,38 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+
 import { connectDB } from "@/lib/mongodb";
-import { normalizeLinkedInUrl, extractLinkedInVanity } from "@/lib/linkedin";
-import ProfileModel from "@/models/Profile";
-import { cookies } from "next/headers";
+import Profile from "@/models/Profile";
+
+function normaliseLinkedInUrl(value: string) {
+  if (!value) return "";
+
+  let url = decodeURIComponent(value)
+    .trim()
+    .toLowerCase();
+
+  // Handle markdown URLs
+  const markdownMatch = url.match(
+    /\((https?:\/\/[^)]+)\)/
+  );
+
+  if (markdownMatch) {
+    url = markdownMatch[1];
+  }
+
+  url = url
+    .replace(/^<|>$/g, "")
+    .replace(/\/+$/, "")
+    .replace(
+      "https://www.linkedin.com",
+      "https://linkedin.com"
+    );
+
+  return url;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Try Auth.js session first
-    const session = await auth();
+    // -----------------------------------------
+    // 1. Get authenticated LinkedIn email
+    // -----------------------------------------
 
-    // 2. Also read the custom LinkedIn cookies you already have
-    const cookieStore = await cookies();
-    const linkedinSub = cookieStore.get("linkedin_sub")?.value;
-    const linkedinEmail = cookieStore.get("linkedin_email")?.value;
-    const linkedinName = cookieStore.get("linkedin_name")?.value;
+    const emailCookie =
+      req.cookies.get("linkedin_email")?.value;
 
-    // Must have either a session or the LinkedIn cookies
-    if (!session?.user && !linkedinSub) {
+    if (!emailCookie) {
       return NextResponse.json(
-        { error: "Please login with LinkedIn first" },
+        {
+          success: false,
+          error:
+            "Please sign in with LinkedIn first.",
+        },
         { status: 401 }
       );
     }
 
-    const body = await req.json();
-    const linkedinUrl = body.linkedinUrl as string;
+    const email = decodeURIComponent(
+      emailCookie
+    )
+      .trim()
+      .toLowerCase();
 
-    const normalized = normalizeLinkedInUrl(linkedinUrl);
-    if (!normalized) {
+    // -----------------------------------------
+    // 2. Get LinkedIn URL
+    // -----------------------------------------
+
+    const body = await req.json();
+
+    const linkedinUrl = normaliseLinkedInUrl(
+      body.linkedinUrl || ""
+    );
+
+    if (!linkedinUrl) {
       return NextResponse.json(
         {
+          success: false,
           error:
-            "Invalid LinkedIn URL. Example: https://www.linkedin.com/in/abbythomas/",
+            "Please enter your LinkedIn profile URL.",
         },
         { status: 400 }
       );
@@ -40,51 +79,99 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
 
-    // Find matching Powerlist profile
-    const profile = await ProfileModel.findOne({
-      "social_icons.social_network_url": {
-        $regex: new RegExp(
-          normalized.replace("https://www.", "").replace(/\/$/, ""),
-          "i"
-        ),
-      },
+    // -----------------------------------------
+    // 3. Find profiles containing LinkedIn
+    // -----------------------------------------
+
+    const profiles = await Profile.find({
+      "social_icons.icon_type": "linkedin",
     });
+
+    let profile = null;
+
+    for (const item of profiles) {
+      const linkedinIcon =
+        item.social_icons?.find(
+          (icon: any) =>
+            icon.icon_type?.toLowerCase() ===
+            "linkedin"
+        );
+
+      if (
+        !linkedinIcon?.social_network_url
+      ) {
+        continue;
+      }
+
+      const existingUrl =
+        normaliseLinkedInUrl(
+          linkedinIcon.social_network_url
+        );
+
+      if (existingUrl === linkedinUrl) {
+        profile = item;
+        break;
+      }
+    }
+
+    // -----------------------------------------
+    // 4. LinkedIn URL not found
+    // -----------------------------------------
 
     if (!profile) {
       return NextResponse.json(
-        { error: "No Powerlist profile found with that LinkedIn URL" },
+        {
+          success: false,
+          error:
+            "We couldn't find a Powerlist profile with that LinkedIn URL.",
+        },
         { status: 404 }
       );
     }
 
-    // Generate a stable email
-    const vanity =
-      extractLinkedInVanity(normalized) ||
-      profile.slug ||
-      String(profile._id);
+    // -----------------------------------------
+    // 5. Profile already claimed
+    // -----------------------------------------
 
-    const generatedEmail = `${vanity}@linkedin.powerlist.local`;
-
-    // Save email on the profile
-    profile.email = generatedEmail;
-    await profile.save();
-
-    // Optional: also save the LinkedIn sub for future matching
-    if (linkedinSub) {
-      profile.linkedinSub = linkedinSub; // only if you add this field to the schema
-      await profile.save();
+    if (profile.email) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This profile has already been claimed.",
+        },
+        { status: 409 }
+      );
     }
+
+    // -----------------------------------------
+    // 6. Add authenticated email
+    // -----------------------------------------
+
+    profile.email = email;
+
+    await profile.save();
 
     return NextResponse.json({
       success: true,
-      email: generatedEmail,
-      name: profile.title,
-      redirectTo: "/",
+      profile: {
+        id: profile.id,
+        slug: profile.slug,
+        title: profile.title,
+        email: profile.email,
+      },
     });
-  } catch (err: any) {
-    console.error("[claim-profile]", err);
+  } catch (error) {
+    console.error(
+      "CLAIM PROFILE ERROR:",
+      error
+    );
+
     return NextResponse.json(
-      { error: err.message || "Server error" },
+      {
+        success: false,
+        error: "Unable to claim profile.",
+      },
       { status: 500 }
     );
   }
