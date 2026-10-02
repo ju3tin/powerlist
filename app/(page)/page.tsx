@@ -789,7 +789,7 @@ const router = useRouter();
               </a>
 
               <a
-                href="/login"
+                href="/login2"
                 className="hover:text-white"
               >
                 Admin
