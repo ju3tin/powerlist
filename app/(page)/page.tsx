@@ -254,6 +254,8 @@ export default function Page() {
   const [badgeClaimed, setBadgeClaimed] =
     useState(false);
 
+    const [hasProfile, setHasProfile] = useState(false);
+
   /*
    * ------------------------------------------------
    * LinkedIn login
@@ -294,6 +296,11 @@ export default function Page() {
         if (cancelled) {
           return;
         }
+
+        setHasProfile(
+          response.ok &&
+          data.authenticated === true && data.hasProfile === true
+        );
 
         setIsLinkedInAuthenticated(
           response.ok &&
@@ -381,6 +388,34 @@ export default function Page() {
       );
     }
   }
+
+ 
+
+useEffect(() => {
+  async function checkProfile() {
+    try {
+      const response = await fetch("/api/linkedin/profile", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      setIsLinkedInAuthenticated(data.authenticated === true);
+      setHasProfile(
+        data.authenticated === true &&
+        data.hasProfile === true
+      );
+    } catch {
+      setIsLinkedInAuthenticated(false);
+      setHasProfile(false);
+    } finally {
+      setAuthChecked(true);
+    }
+  }
+
+  checkProfile();
+}, []);
 
   return (
     <>
@@ -494,13 +529,29 @@ export default function Page() {
 
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={handleLogin}
-                className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
-              >
-                Sign in with LinkedIn
-              </button>
+
+              
+             
+                <>
+                  {!isLinkedInAuthenticated ? (
+                    <button onClick={handleLogin}>
+                      Sign in with LinkedIn
+                    </button>
+                  ) : hasProfile ? (
+                    <a href="/profile">
+                      My Profile
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        window.location.href = "/?claim=true";
+                      }}
+                    >
+                      Claim Your Powerlist Profile
+                    </button>
+                  )}
+                </>
+            
             )}
 
             {/* MOBILE MENU BUTTON */}
