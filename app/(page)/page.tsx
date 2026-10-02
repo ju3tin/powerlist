@@ -1,5 +1,5 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 import {
   FormEvent,
   useEffect,
@@ -417,6 +417,8 @@ useEffect(() => {
   checkProfile();
 }, []);
 
+const router = useRouter();
+
   return (
     <>
       <PageStyle />
@@ -472,87 +474,75 @@ useEffect(() => {
             {/* DESKTOP AUTH BUTTON */}
 
             {!authChecked ? (
-              <div
-                className="hidden h-10 w-36 rounded-full bg-transparent md:block"
-                aria-hidden="true"
-              />
-            ) : isLinkedInAuthenticated ? (
-              <div className="flex items-center gap-2">
+  <div
+    className="hidden h-10 w-36 rounded-full bg-transparent md:block"
+    aria-hidden="true"
+  />
+) : isLinkedInAuthenticated && !hasProfile ? (
+  <button
+    type="button"
+    onClick={() => router.push("/?claim=true")}
+    className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
+  >
+    Claim Your Powerlist Profile
+  </button>
+) : isLinkedInAuthenticated && hasProfile ? (
+  <div className="flex items-center gap-2">
+    <a
+      href="/profile"
+      className="hidden rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:block"
+    >
+      My Profile
+    </a>
 
-                <a
-                  href="/profile"
-                  className="hidden rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:block"
-                >
-                  My Profile
-                </a>
+    <button
+      type="button"
+      onClick={
+        walletAddress
+          ? copyAddress
+          : connectCoreWallet
+      }
+      className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
+      aria-label={
+        walletAddress
+          ? "Copy wallet address"
+          : "Connect Core Wallet"
+      }
+    >
+      <span
+        className={`size-2 rounded-full ${
+          walletAddress
+            ? "bg-[#45c87a]"
+            : "bg-gray-400"
+        }`}
+      />
 
-                <button
-                  type="button"
-                  onClick={
-                    walletAddress
-                      ? copyAddress
-                      : connectCoreWallet
-                  }
-                  className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
-                  aria-label={
-                    walletAddress
-                      ? "Copy wallet address"
-                      : "Connect Core Wallet"
-                  }
-                >
-                  <span
-                    className={`size-2 rounded-full ${
-                      walletAddress
-                        ? "bg-[#45c87a]"
-                        : "bg-gray-400"
-                    }`}
-                  />
+      {walletAddress
+        ? isCopied
+          ? "Copied"
+          : `${walletAddress.slice(
+              0,
+              6
+            )}...${walletAddress.slice(-4)}`
+        : "Connect Core Wallet"}
 
-                  {walletAddress
-                    ? isCopied
-                      ? "Copied"
-                      : `${walletAddress.slice(
-                          0,
-                          6
-                        )}...${walletAddress.slice(
-                          -4
-                        )}`
-                    : "Connect Core Wallet"}
-
-                  {walletAddress &&
-                    (isCopied ? (
-                      <Check className="size-4 text-[#45c87a]" />
-                    ) : (
-                      <Copy className="size-4 text-[#8a9bab]" />
-                    ))}
-                </button>
-
-              </div>
-            ) : (
-
-              
-             
-                <>
-                  {!isLinkedInAuthenticated ? (
-                    <button onClick={handleLogin}>
-                      Sign in with LinkedIn
-                    </button>
-                  ) : hasProfile ? (
-                    <a href="/profile">
-                      My Profile
-                    </a>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        window.location.href = "/?claim=true";
-                      }}
-                    >
-                      Claim Your Powerlist Profile
-                    </button>
-                  )}
-                </>
-            
-            )}
+      {walletAddress &&
+        (isCopied ? (
+          <Check className="size-4 text-[#45c87a]" />
+        ) : (
+          <Copy className="size-4 text-[#8a9bab]" />
+        ))}
+    </button>
+  </div>
+) : (
+  <button
+    type="button"
+    onClick={handleLogin}
+    className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
+  >
+    Sign in with LinkedIn
+  </button>
+)}
 
             {/* MOBILE MENU BUTTON */}
 
