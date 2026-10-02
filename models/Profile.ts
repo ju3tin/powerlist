@@ -8,6 +8,14 @@ const SocialIconSchema = new Schema(
   { _id: false }
 );
 
+const OtherSchema = new Schema(
+  {
+    other_type: String,
+    other_type_value: String,
+  },
+  { _id: false }
+);
+
 const ProfileSchema = new Schema(
   {
     id: {
@@ -44,6 +52,8 @@ const ProfileSchema = new Schema(
     link: String,
 
     social_icons: [SocialIconSchema],
+
+    other: [OtherSchema],
 
     count: String,
 

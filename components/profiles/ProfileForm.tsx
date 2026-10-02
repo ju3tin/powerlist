@@ -7,6 +7,11 @@ type SocialIcon = {
   social_network_url: string;
 };
 
+type OtherItem = {
+  other_type: string;
+  other_type_value: string;
+};
+
 export default function ProfileForm() {
   const [form, setForm] = useState({
     id: "",
@@ -24,7 +29,7 @@ export default function ProfileForm() {
   });
 
   const [socialIcons, setSocialIcons] = useState<SocialIcon[]>([]);
-
+  const [other, setOther] = useState<OtherItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -54,6 +59,10 @@ export default function ProfileForm() {
       slug: previous.slug || generateSlug(value),
     }));
   }
+
+  // -------------------------
+  // Social Icons
+  // -------------------------
 
   function addSocialIcon() {
     setSocialIcons((previous) => [
@@ -88,7 +97,50 @@ export default function ProfileForm() {
     );
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  // -------------------------
+  // Other
+  // -------------------------
+
+  function addOther() {
+    setOther((previous) => [
+      ...previous,
+      {
+        other_type: "",
+        other_type_value: "",
+      },
+    ]);
+  }
+
+  function updateOther(
+    index: number,
+    field: keyof OtherItem,
+    value: string
+  ) {
+    setOther((previous) =>
+      previous.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [field]: value,
+            }
+          : item
+      )
+    );
+  }
+
+  function removeOther(index: number) {
+    setOther((previous) =>
+      previous.filter((_, i) => i !== index)
+    );
+  }
+
+  // -------------------------
+  // Submit
+  // -------------------------
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     setSaving(true);
@@ -104,13 +156,16 @@ export default function ProfileForm() {
           ...form,
           id: Number(form.id),
           social_icons: socialIcons,
+          other,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to create profile");
+        throw new Error(
+          data.error || "Failed to create profile"
+        );
       }
 
       setMessage("Profile created successfully.");
@@ -132,8 +187,11 @@ export default function ProfileForm() {
       });
 
       setSocialIcons([]);
+      setOther([]);
     } catch (error: any) {
-      setMessage(error.message || "Something went wrong");
+      setMessage(
+        error.message || "Something went wrong"
+      );
     } finally {
       setSaving(false);
     }
@@ -144,6 +202,8 @@ export default function ProfileForm() {
       onSubmit={handleSubmit}
       className="mx-auto max-w-4xl space-y-8"
     >
+      {/* Header */}
+
       <div>
         <h1 className="text-3xl font-bold">
           Add Profile
@@ -154,13 +214,17 @@ export default function ProfileForm() {
         </p>
       </div>
 
+      {/* Message */}
+
       {message && (
         <div className="rounded-lg border bg-gray-50 p-4">
           {message}
         </div>
       )}
 
-      {/* Basic information */}
+      {/* =========================
+          Profile Information
+      ========================= */}
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <h2 className="mb-6 text-xl font-semibold">
@@ -168,6 +232,8 @@ export default function ProfileForm() {
         </h2>
 
         <div className="grid gap-5 md:grid-cols-2">
+          {/* Profile ID */}
+
           <div>
             <label className="mb-2 block font-medium">
               Profile ID *
@@ -184,6 +250,8 @@ export default function ProfileForm() {
             />
           </div>
 
+          {/* Date */}
+
           <div>
             <label className="mb-2 block font-medium">
               Date
@@ -199,6 +267,8 @@ export default function ProfileForm() {
               className="w-full rounded-lg border p-3"
             />
           </div>
+
+          {/* Title */}
 
           <div className="md:col-span-2">
             <label className="mb-2 block font-medium">
@@ -217,6 +287,8 @@ export default function ProfileForm() {
             />
           </div>
 
+          {/* Artist Title */}
+
           <div>
             <label className="mb-2 block font-medium">
               Artist Title
@@ -234,6 +306,8 @@ export default function ProfileForm() {
               className="w-full rounded-lg border p-3"
             />
           </div>
+
+          {/* Power List Category */}
 
           <div>
             <label className="mb-2 block font-medium">
@@ -256,7 +330,9 @@ export default function ProfileForm() {
         </div>
       </section>
 
-      {/* Slugs */}
+      {/* =========================
+          URLs
+      ========================= */}
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <h2 className="mb-6 text-xl font-semibold">
@@ -264,6 +340,8 @@ export default function ProfileForm() {
         </h2>
 
         <div className="space-y-5">
+          {/* Slug */}
+
           <div>
             <label className="mb-2 block font-medium">
               Slug *
@@ -280,6 +358,8 @@ export default function ProfileForm() {
               placeholder="rachel-logan"
             />
           </div>
+
+          {/* Full Slug */}
 
           <div>
             <label className="mb-2 block font-medium">
@@ -300,6 +380,8 @@ export default function ProfileForm() {
             />
           </div>
 
+          {/* Link */}
+
           <div>
             <label className="mb-2 block font-medium">
               Link
@@ -318,7 +400,9 @@ export default function ProfileForm() {
         </div>
       </section>
 
-      {/* Images */}
+      {/* =========================
+          Images
+      ========================= */}
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <h2 className="mb-6 text-xl font-semibold">
@@ -326,6 +410,8 @@ export default function ProfileForm() {
         </h2>
 
         <div className="space-y-5">
+          {/* Featured Image */}
+
           <div>
             <label className="mb-2 block font-medium">
               Featured Image
@@ -352,6 +438,8 @@ export default function ProfileForm() {
               />
             )}
           </div>
+
+          {/* Company Logo */}
 
           <div>
             <label className="mb-2 block font-medium">
@@ -382,7 +470,9 @@ export default function ProfileForm() {
         </div>
       </section>
 
-      {/* Content */}
+      {/* =========================
+          Content
+      ========================= */}
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <h2 className="mb-6 text-xl font-semibold">
@@ -400,7 +490,9 @@ export default function ProfileForm() {
         />
       </section>
 
-      {/* Social icons */}
+      {/* =========================
+          Social Icons
+      ========================= */}
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
@@ -473,29 +565,122 @@ export default function ProfileForm() {
         </div>
       </section>
 
-      {/* Other */}
+      {/* =========================
+          Other
+      ========================= */}
 
       <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">
-          Other
-        </h2>
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold">
+            Other
+          </h2>
 
-        <label className="mb-2 block font-medium">
-          Count
-        </label>
+          <p className="mt-1 text-sm text-gray-500">
+            Add additional information for this profile.
+          </p>
+        </div>
 
-        <input
-          type="text"
-          value={form.count}
-          onChange={(e) =>
-            updateField("count", e.target.value)
-          }
-          className="w-full rounded-lg border p-3"
-          placeholder="1"
-        />
+        {/* Count */}
+
+        <div className="mb-8">
+          <label className="mb-2 block font-medium">
+            Count
+          </label>
+
+          <input
+            type="text"
+            value={form.count}
+            onChange={(e) =>
+              updateField("count", e.target.value)
+            }
+            className="w-full rounded-lg border p-3"
+            placeholder="1"
+          />
+        </div>
+
+        {/* Additional Information */}
+
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-medium">
+              Additional Information
+            </h3>
+
+            <button
+              type="button"
+              onClick={addOther}
+              className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white"
+            >
+              + Add Other
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {other.map((item, index) => (
+              <div
+                key={index}
+                className="rounded-lg border bg-gray-50 p-4"
+              >
+                <div className="grid gap-4 md:grid-cols-[200px_1fr_auto]">
+                  {/* Other Type */}
+
+                  <input
+                    type="text"
+                    placeholder="Type"
+                    value={item.other_type}
+                    onChange={(e) =>
+                      updateOther(
+                        index,
+                        "other_type",
+                        e.target.value
+                      )
+                    }
+                    className="rounded-lg border bg-white p-3"
+                  />
+
+                  {/* Other Value */}
+
+                  <input
+                    type="text"
+                    placeholder="Value"
+                    value={item.other_type_value}
+                    onChange={(e) =>
+                      updateOther(
+                        index,
+                        "other_type_value",
+                        e.target.value
+                      )
+                    }
+                    className="rounded-lg border bg-white p-3"
+                  />
+
+                  {/* Remove */}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeOther(index)
+                    }
+                    className="rounded-lg border px-4 py-2 text-red-600 hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {other.length === 0 && (
+              <p className="text-sm text-gray-500">
+                No additional information added.
+              </p>
+            )}
+          </div>
+        </div>
       </section>
 
-      {/* Submit */}
+      {/* =========================
+          Submit
+      ========================= */}
 
       <div className="flex justify-end">
         <button
@@ -503,7 +688,9 @@ export default function ProfileForm() {
           disabled={saving}
           className="rounded-lg bg-black px-8 py-3 font-semibold text-white disabled:opacity-50"
         >
-          {saving ? "Creating..." : "Create Profile"}
+          {saving
+            ? "Creating..."
+            : "Create Profile"}
         </button>
       </div>
     </form>
