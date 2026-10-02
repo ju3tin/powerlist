@@ -3,6 +3,7 @@
 import { Suspense, FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import LinkedInLoginButton from "@/components/LinkedInLoginButton1";
+import LogoutButton from "@/components/LogoutButton";
 
 function LoginContent() {
   const router = useRouter();
@@ -180,6 +181,10 @@ function LoginContent() {
             {authError}
           </div>
         )}
+
+<LogoutButton className="rounded-full bg-[#10253f] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1d3855] disabled:opacity-50">
+  Sign out
+</LogoutButton>
 
         <LinkedInLoginButton
           text="Continue with LinkedIn"
