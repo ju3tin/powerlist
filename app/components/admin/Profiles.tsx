@@ -1,698 +1,695 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useEffect, useState } from "react";
+import AdminNav from "@/components/nav";
 
-type SocialIcon = {
+interface SocialIcon {
   icon_type: string;
   social_network_url: string;
-};
+}
 
-type OtherItem = {
+interface OtherItem {
   other_type: string;
   other_type_value: string;
-};
+}
 
-export default function ProfileForm() {
-  const [form, setForm] = useState({
-    id: "",
-    title: "",
-    artist_title: "",
-    date: "",
-    content: "",
-    slug: "",
-    featured_image: "",
-    power_list_category: "",
-    link: "",
-    count: "",
-    company_logo: "",
-    full_slug: "",
-  });
+interface Profile {
+  _id: string;
+  id: number;
+  title: string;
+  email?: string;
+  artist_title?: string;
+  date?: string;
+  content?: string;
+  slug: string;
+  featured_image?: string;
+  power_list_category?: string;
+  link?: string;
+  social_icons?: SocialIcon[];
+  other?: OtherItem[];
+  count?: string;
+  company_logo?: string;
+  full_slug?: string;
+  [key: string]: any;
+}
 
-  const [socialIcons, setSocialIcons] = useState<SocialIcon[]>([]);
-  const [other, setOther] = useState<OtherItem[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+const IMPORTANT_FIELDS = [
+  "email",
+  "artist_title",
+  "featured_image",
+  "company_logo",
+  "power_list_category",
+  "content",
+  "social_icons",
+];
 
-  function updateField(
-    field: keyof typeof form,
-    value: string
-  ) {
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
-  }
+export default function ProfilesPage() {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [selected, setSelected] = useState<Profile | null>(null);
+  const [form, setForm] = useState<Partial<Profile>>({});
+  const [loading, setLoading] = useState(false);
+  const [filterMissing, setFilterMissing] = useState(false);
 
-  function generateSlug(title: string) {
-    return title
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
-  }
+  // Search
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searching, setSearching] = useState(false);
 
-  function handleTitleChange(value: string) {
-    setForm((previous) => ({
-      ...previous,
-      title: value,
-      slug: previous.slug || generateSlug(value),
-    }));
-  }
+  const load = async (searchTerm = "") => {
+    try {
+      setSearching(true);
 
-  // -------------------------
-  // Social Icons
-  // -------------------------
+      const url = searchTerm.trim()
+        ? `/api/profiles2?search=${encodeURIComponent(
+            searchTerm.trim()
+          )}`
+        : "/api/profiles2";
 
-  function addSocialIcon() {
-    setSocialIcons((previous) => [
-      ...previous,
-      {
-        icon_type: "",
-        social_network_url: "",
-      },
-    ]);
-  }
+      const res = await fetch(url);
 
-  function updateSocialIcon(
-    index: number,
-    field: keyof SocialIcon,
-    value: string
-  ) {
-    setSocialIcons((previous) =>
-      previous.map((social, i) =>
-        i === index
-          ? {
-              ...social,
-              [field]: value,
-            }
-          : social
-      )
-    );
-  }
+      if (!res.ok) {
+        throw new Error("Failed to load profiles");
+      }
 
-  function removeSocialIcon(index: number) {
-    setSocialIcons((previous) =>
-      previous.filter((_, i) => i !== index)
-    );
-  }
+      const data = await res.json();
 
-  // -------------------------
-  // Other
-  // -------------------------
+      setProfiles(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load profiles:", error);
+      setProfiles([]);
+    } finally {
+      setSearching(false);
+    }
+  };
 
-  function addOther() {
-    setOther((previous) => [
-      ...previous,
-      {
-        other_type: "",
-        other_type_value: "",
-      },
-    ]);
-  }
+  useEffect(() => {
+    load();
+  }, []);
 
-  function updateOther(
-    index: number,
-    field: keyof OtherItem,
-    value: string
-  ) {
-    setOther((previous) =>
-      previous.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              [field]: value,
-            }
-          : item
-      )
-    );
-  }
+  // Search
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
 
-  function removeOther(index: number) {
-    setOther((previous) =>
-      previous.filter((_, i) => i !== index)
-    );
-  }
+    setSearch(searchInput);
+    load(searchInput);
+  };
 
-  // -------------------------
-  // Submit
-  // -------------------------
+  // Clear search
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    load();
+  };
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
+  // Open editor
+  const openEditor = (p: Profile) => {
+    setSelected(p);
 
-    setSaving(true);
-    setMessage("");
+    setForm({
+      ...p,
+      social_icons: p.social_icons ?? [],
+      other: p.other ?? [],
+    });
+  };
+
+  // Save profile
+  const save = async () => {
+    if (!selected) return;
+
+    setLoading(true);
 
     try {
-      const response = await fetch("/api/singleprofile", {
-        method: "POST",
+      const res = await fetch("/api/profiles", {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          _id: selected._id,
           ...form,
-          id: Number(form.id),
-          social_icons: socialIcons,
-          other,
+          social_icons: form.social_icons ?? [],
+          other: form.other ?? [],
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Failed to create profile"
-        );
+      if (!res.ok) {
+        throw new Error("Save failed");
       }
 
-      setMessage("Profile created successfully.");
+      await load(search);
 
-      // Reset form
-      setForm({
-        id: "",
-        title: "",
-        artist_title: "",
-        date: "",
-        content: "",
-        slug: "",
-        featured_image: "",
-        power_list_category: "",
-        link: "",
-        count: "",
-        company_logo: "",
-        full_slug: "",
-      });
-
-      setSocialIcons([]);
-      setOther([]);
-    } catch (error: any) {
-      setMessage(
-        error.message || "Something went wrong"
-      );
+      setSelected(null);
+      setForm({});
+    } catch (e) {
+      console.error(e);
+      alert("Error saving profile");
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
-  }
+  };
+
+  const hasMissing = (p: Profile) =>
+    IMPORTANT_FIELDS.some((f) => {
+      const val = p[f];
+
+      return (
+        val === undefined ||
+        val === null ||
+        val === "" ||
+        (Array.isArray(val) && val.length === 0)
+      );
+    });
+
+  const displayed = filterMissing
+    ? profiles.filter(hasMissing)
+    : profiles;
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mx-auto max-w-4xl space-y-8"
-    >
-      {/* Header */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation */}
+      <AdminNav />
 
-      <div>
-        <h1 className="text-3xl font-bold">
-          Add Profile
-        </h1>
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">
+            Profile Editor
+          </h1>
 
-        <p className="mt-2 text-gray-500">
-          Create a single profile.
-        </p>
-      </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filterMissing}
+              onChange={(e) =>
+                setFilterMissing(e.target.checked)
+              }
+              className="rounded"
+            />
 
-      {/* Message */}
-
-      {message && (
-        <div className="rounded-lg border bg-gray-50 p-4">
-          {message}
+            Show only profiles with missing fields
+          </label>
         </div>
-      )}
 
-      {/* =========================
-          Profile Information
-      ========================= */}
-
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">
-          Profile Information
-        </h2>
-
-        <div className="grid gap-5 md:grid-cols-2">
-          {/* Profile ID */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Profile ID *
-            </label>
-
-            <input
-              type="number"
-              required
-              value={form.id}
-              onChange={(e) =>
-                updateField("id", e.target.value)
-              }
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          {/* Date */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Date
-            </label>
-
-            <input
-              type="text"
-              placeholder="2026"
-              value={form.date}
-              onChange={(e) =>
-                updateField("date", e.target.value)
-              }
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          {/* Title */}
-
-          <div className="md:col-span-2">
-            <label className="mb-2 block font-medium">
-              Title *
-            </label>
-
-            <input
-              type="text"
-              required
-              value={form.title}
-              onChange={(e) =>
-                handleTitleChange(e.target.value)
-              }
-              className="w-full rounded-lg border p-3"
-              placeholder="Rachel Logan"
-            />
-          </div>
-
-          {/* Artist Title */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Artist Title
-            </label>
-
-            <input
-              type="text"
-              value={form.artist_title}
-              onChange={(e) =>
-                updateField(
-                  "artist_title",
-                  e.target.value
-                )
-              }
-              className="w-full rounded-lg border p-3"
-            />
-          </div>
-
-          {/* Power List Category */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Power List Category
-            </label>
-
-            <input
-              type="text"
-              value={form.power_list_category}
-              onChange={(e) =>
-                updateField(
-                  "power_list_category",
-                  e.target.value
-                )
-              }
-              className="w-full rounded-lg border p-3"
-              placeholder="Women in FinTech"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* =========================
-          URLs
-      ========================= */}
-
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">
-          URLs
-        </h2>
-
-        <div className="space-y-5">
-          {/* Slug */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Slug *
-            </label>
-
-            <input
-              type="text"
-              required
-              value={form.slug}
-              onChange={(e) =>
-                updateField("slug", e.target.value)
-              }
-              className="w-full rounded-lg border p-3"
-              placeholder="rachel-logan"
-            />
-          </div>
-
-          {/* Full Slug */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Full Slug
-            </label>
-
-            <input
-              type="text"
-              value={form.full_slug}
-              onChange={(e) =>
-                updateField(
-                  "full_slug",
-                  e.target.value
-                )
-              }
-              className="w-full rounded-lg border p-3"
-              placeholder="/women-in-fintech/rachel-logan"
-            />
-          </div>
-
-          {/* Link */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Link
-            </label>
-
-            <input
-              type="url"
-              value={form.link}
-              onChange={(e) =>
-                updateField("link", e.target.value)
-              }
-              className="w-full rounded-lg border p-3"
-              placeholder="https://example.com"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* =========================
-          Images
-      ========================= */}
-
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">
-          Images
-        </h2>
-
-        <div className="space-y-5">
-          {/* Featured Image */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Featured Image
-            </label>
-
-            <input
-              type="url"
-              value={form.featured_image}
-              onChange={(e) =>
-                updateField(
-                  "featured_image",
-                  e.target.value
-                )
-              }
-              className="w-full rounded-lg border p-3"
-              placeholder="https://..."
-            />
-
-            {form.featured_image && (
-              <img
-                src={form.featured_image}
-                alt="Preview"
-                className="mt-4 h-48 w-full rounded-lg object-cover"
-              />
-            )}
-          </div>
-
-          {/* Company Logo */}
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Company Logo
-            </label>
-
-            <input
-              type="url"
-              value={form.company_logo}
-              onChange={(e) =>
-                updateField(
-                  "company_logo",
-                  e.target.value
-                )
-              }
-              className="w-full rounded-lg border p-3"
-              placeholder="https://..."
-            />
-
-            {form.company_logo && (
-              <img
-                src={form.company_logo}
-                alt="Company logo"
-                className="mt-4 h-24 max-w-xs object-contain"
-              />
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* =========================
-          Content
-      ========================= */}
-
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">
-          Content
-        </h2>
-
-        <textarea
-          value={form.content}
-          onChange={(e) =>
-            updateField("content", e.target.value)
-          }
-          rows={12}
-          className="w-full rounded-lg border p-3"
-          placeholder="Profile content..."
-        />
-      </section>
-
-      {/* =========================
-          Social Icons
-      ========================= */}
-
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">
-            Social Icons
-          </h2>
-
-          <button
-            type="button"
-            onClick={addSocialIcon}
-            className="rounded-lg bg-black px-4 py-2 text-white"
+        {/* Search */}
+        <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+          <form
+            onSubmit={handleSearch}
+            className="flex gap-3"
           >
-            + Add Social
-          </button>
-        </div>
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) =>
+                  setSearchInput(e.target.value)
+                }
+                placeholder="Search profiles by name, email, job title, slug, category..."
+                className="w-full border rounded-lg px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
 
-        <div className="space-y-4">
-          {socialIcons.map((social, index) => (
-            <div
-              key={index}
-              className="rounded-lg border p-4"
-            >
-              <div className="grid gap-4 md:grid-cols-[200px_1fr_auto]">
-                <input
-                  type="text"
-                  placeholder="linkedin"
-                  value={social.icon_type}
-                  onChange={(e) =>
-                    updateSocialIcon(
-                      index,
-                      "icon_type",
-                      e.target.value
-                    )
-                  }
-                  className="rounded-lg border p-3"
-                />
-
-                <input
-                  type="url"
-                  placeholder="https://linkedin.com/..."
-                  value={social.social_network_url}
-                  onChange={(e) =>
-                    updateSocialIcon(
-                      index,
-                      "social_network_url",
-                      e.target.value
-                    )
-                  }
-                  className="rounded-lg border p-3"
-                />
-
+              {searchInput && (
                 <button
                   type="button"
-                  onClick={() =>
-                    removeSocialIcon(index)
-                  }
-                  className="rounded-lg border px-4 py-2 text-red-600"
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
                 >
-                  Remove
+                  ×
                 </button>
-              </div>
+              )}
             </div>
-          ))}
-
-          {socialIcons.length === 0 && (
-            <p className="text-gray-500">
-              No social links added.
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* =========================
-          Other
-      ========================= */}
-
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold">
-            Other
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Add additional information for this profile.
-          </p>
-        </div>
-
-        {/* Count */}
-
-        <div className="mb-8">
-          <label className="mb-2 block font-medium">
-            Count
-          </label>
-
-          <input
-            type="text"
-            value={form.count}
-            onChange={(e) =>
-              updateField("count", e.target.value)
-            }
-            className="w-full rounded-lg border p-3"
-            placeholder="1"
-          />
-        </div>
-
-        {/* Additional Information */}
-
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-medium">
-              Additional Information
-            </h3>
 
             <button
-              type="button"
-              onClick={addOther}
-              className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white"
+              type="submit"
+              disabled={searching}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              + Add Other
+              {searching ? "Searching..." : "Search"}
             </button>
+
+            {search && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="border px-5 py-3 rounded-lg hover:bg-gray-50"
+              >
+                Clear
+              </button>
+            )}
+          </form>
+
+          {search && (
+            <div className="mt-3 text-sm text-gray-500">
+              Search results for{" "}
+              <span className="font-medium text-gray-800">
+                "{search}"
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Main content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Profile List */}
+          <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
+            <div className="bg-gray-50 px-4 py-3 font-medium border-b flex justify-between">
+              <span>
+                {displayed.length}{" "}
+                {displayed.length === 1
+                  ? "profile"
+                  : "profiles"}
+              </span>
+
+              {searching && (
+                <span className="text-sm text-gray-500">
+                  Searching...
+                </span>
+              )}
+            </div>
+
+            <ul className="divide-y max-h-[75vh] overflow-y-auto">
+              {displayed.length === 0 ? (
+                <li className="px-4 py-10 text-center text-gray-500">
+                  {search
+                    ? `No profiles found for "${search}"`
+                    : "No profiles found"}
+                </li>
+              ) : (
+                displayed.map((p) => (
+                  <li
+                    key={p._id}
+                    onClick={() => openEditor(p)}
+                    className={`px-4 py-3 cursor-pointer hover:bg-blue-50 flex justify-between items-center ${
+                      hasMissing(p)
+                        ? "bg-amber-50"
+                        : ""
+                    }`}
+                  >
+                    <div>
+                      <div className="font-medium">
+                        {p.title}
+                      </div>
+
+                      <div className="text-sm text-gray-500">
+                        {p.email || "— no email"}
+                      </div>
+
+                      <div className="text-sm text-gray-500">
+                        {p.artist_title || "— no title"}
+                      </div>
+
+                      <div className="text-xs text-gray-400 mt-1">
+                        {p.slug}
+                      </div>
+                    </div>
+
+                    {hasMissing(p) && (
+                      <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded">
+                        missing data
+                      </span>
+                    )}
+                  </li>
+                ))
+              )}
+            </ul>
           </div>
 
-          <div className="space-y-4">
-            {other.map((item, index) => (
-              <div
-                key={index}
-                className="rounded-lg border bg-gray-50 p-4"
-              >
-                <div className="grid gap-4 md:grid-cols-[200px_1fr_auto]">
-                  {/* Other Type */}
+          {/* Editor */}
+          {selected && (
+            <div className="border rounded-xl p-6 space-y-6 bg-white shadow-sm sticky top-6 self-start max-h-[90vh] overflow-y-auto">
+              <h2 className="text-lg font-semibold">
+                Editing: {selected.title}
+              </h2>
 
-                  <input
-                    type="text"
-                    placeholder="Type"
-                    value={item.other_type}
-                    onChange={(e) =>
-                      updateOther(
-                        index,
-                        "other_type",
-                        e.target.value
-                      )
-                    }
-                    className="rounded-lg border bg-white p-3"
-                  />
+              {/* Basic fields */}
+              <div className="space-y-4">
+                {[
+                  "title",
+                  "email",
+                  "artist_title",
+                  "date",
+                  "slug",
+                  "featured_image",
+                  "power_list_category",
+                  "link",
+                  "count",
+                  "company_logo",
+                  "full_slug",
+                ].map((key) => (
+                  <div key={key}>
+                    <label className="block text-sm font-medium mb-1 capitalize">
+                      {key.replace(/_/g, " ")}
 
-                  {/* Other Value */}
+                      {IMPORTANT_FIELDS.includes(key) &&
+                        !form[key] && (
+                          <span className="ml-2 text-xs text-red-500">
+                            missing
+                          </span>
+                        )}
+                    </label>
 
-                  <input
-                    type="text"
-                    placeholder="Value"
-                    value={item.other_type_value}
-                    onChange={(e) =>
-                      updateOther(
-                        index,
-                        "other_type_value",
-                        e.target.value
-                      )
-                    }
-                    className="rounded-lg border bg-white p-3"
-                  />
+                    <input
+                      type={
+                        key === "email"
+                          ? "email"
+                          : "text"
+                      }
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={(form[key] as string) ?? ""}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          [key]: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
 
-                  {/* Remove */}
+              {/* Content */}
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Content (HTML)
+                </label>
+
+                <textarea
+                  rows={5}
+                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={form.content ?? ""}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      content: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              {/* Social Icons */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">
+                    Social icons
+                  </label>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      removeOther(index)
-                    }
-                    className="rounded-lg border px-4 py-2 text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setForm((prev) => ({
+                        ...prev,
+                        social_icons: [
+                          ...(prev.social_icons ?? []),
+                          {
+                            icon_type: "",
+                            social_network_url: "",
+                          },
+                        ],
+                      }));
+                    }}
+                    className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
                   >
-                    Remove
+                    + Add social link
                   </button>
                 </div>
+
+                <div className="space-y-3">
+                  {(form.social_icons ?? []).length === 0 ? (
+                    <div className="border rounded-lg p-4 text-sm text-gray-500 bg-gray-50">
+                      No social links added.
+                    </div>
+                  ) : (
+                    (form.social_icons ?? []).map(
+                      (social, index) => (
+                        <div
+                          key={index}
+                          className="border rounded-lg p-4 bg-gray-50"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Icon type */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Icon type
+                              </label>
+
+                              <input
+                                type="text"
+                                value={
+                                  social.icon_type ?? ""
+                                }
+                                onChange={(e) => {
+                                  setForm((prev) => {
+                                    const socialIcons = [
+                                      ...(prev.social_icons ??
+                                        []),
+                                    ];
+
+                                    socialIcons[index] = {
+                                      ...socialIcons[index],
+                                      icon_type:
+                                        e.target.value,
+                                    };
+
+                                    return {
+                                      ...prev,
+                                      social_icons:
+                                        socialIcons,
+                                    };
+                                  });
+                                }}
+                                placeholder="linkedin"
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+
+                            {/* URL */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Social network URL
+                              </label>
+
+                              <input
+                                type="url"
+                                value={
+                                  social.social_network_url ??
+                                  ""
+                                }
+                                onChange={(e) => {
+                                  setForm((prev) => {
+                                    const socialIcons = [
+                                      ...(prev.social_icons ??
+                                        []),
+                                    ];
+
+                                    socialIcons[index] = {
+                                      ...socialIcons[index],
+                                      social_network_url:
+                                        e.target.value,
+                                    };
+
+                                    return {
+                                      ...prev,
+                                      social_icons:
+                                        socialIcons,
+                                    };
+                                  });
+                                }}
+                                placeholder="https://linkedin.com/in/..."
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Remove */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => ({
+                                ...prev,
+                                social_icons: (
+                                  prev.social_icons ?? []
+                                ).filter(
+                                  (_, i) => i !== index
+                                ),
+                              }));
+                            }}
+                            className="mt-3 text-sm text-red-600 hover:text-red-800 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )
+                    )
+                  )}
+                </div>
               </div>
-            ))}
 
-            {other.length === 0 && (
-              <p className="text-sm text-gray-500">
-                No additional information added.
-              </p>
-            )}
-          </div>
+              {/* Other */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <label className="block text-sm font-medium">
+                      Other information
+                    </label>
+
+                    <p className="text-xs text-gray-500 mt-1">
+                      Add additional profile information such
+                      as awards, websites, or other details.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm((prev) => ({
+                        ...prev,
+                        other: [
+                          ...(prev.other ?? []),
+                          {
+                            other_type: "",
+                            other_type_value: "",
+                          },
+                        ],
+                      }));
+                    }}
+                    className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+                  >
+                    + Add other
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {(form.other ?? []).length === 0 ? (
+                    <div className="border rounded-lg p-4 text-sm text-gray-500 bg-gray-50">
+                      No additional information added.
+                    </div>
+                  ) : (
+                    (form.other ?? []).map(
+                      (item, index) => (
+                        <div
+                          key={index}
+                          className="border rounded-lg p-4 bg-gray-50"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Type */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Type
+                              </label>
+
+                              <input
+                                type="text"
+                                value={
+                                  item.other_type ?? ""
+                                }
+                                onChange={(e) => {
+                                  setForm((prev) => {
+                                    const other = [
+                                      ...(prev.other ?? []),
+                                    ];
+
+                                    other[index] = {
+                                      ...other[index],
+                                      other_type:
+                                        e.target.value,
+                                    };
+
+                                    return {
+                                      ...prev,
+                                      other,
+                                    };
+                                  });
+                                }}
+                                placeholder="award"
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+
+                            {/* Value */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Value
+                              </label>
+
+                              <input
+                                type="text"
+                                value={
+                                  item.other_type_value ??
+                                  ""
+                                }
+                                onChange={(e) => {
+                                  setForm((prev) => {
+                                    const other = [
+                                      ...(prev.other ?? []),
+                                    ];
+
+                                    other[index] = {
+                                      ...other[index],
+                                      other_type_value:
+                                        e.target.value,
+                                    };
+
+                                    return {
+                                      ...prev,
+                                      other,
+                                    };
+                                  });
+                                }}
+                                placeholder="FinTech Leader 2026"
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Remove */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => ({
+                                ...prev,
+                                other: (
+                                  prev.other ?? []
+                                ).filter(
+                                  (_, i) => i !== index
+                                ),
+                              }));
+                            }}
+                            className="mt-3 text-sm text-red-600 hover:text-red-800 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4 border-t">
+                <button
+                  onClick={save}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading
+                    ? "Saving…"
+                    : "Save changes"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSelected(null);
+                    setForm({});
+                  }}
+                  className="border px-5 py-2 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </section>
-
-      {/* =========================
-          Submit
-      ========================= */}
-
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-black px-8 py-3 font-semibold text-white disabled:opacity-50"
-        >
-          {saving
-            ? "Creating..."
-            : "Create Profile"}
-        </button>
       </div>
-    </form>
+    </div>
   );
 }
