@@ -148,6 +148,53 @@ export default function ProfilesPage() {
     }
   };
 
+  const removeProfile = async () => {
+    if (!selected) return;
+  
+    const confirmed = window.confirm(
+      `Are you sure you want to remove "${selected.title}"?\n\nThis will permanently delete this profile.`
+    );
+  
+    if (!confirmed) return;
+  
+    setLoading(true);
+  
+    try {
+      const res = await fetch("/api/profiles", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          _id: selected._id,
+        }),
+      });
+  
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+  
+        throw new Error(
+          data?.error || "Failed to remove profile"
+        );
+      }
+  
+      await load(search);
+  
+      setSelected(null);
+      setForm({});
+    } catch (error) {
+      console.error("Remove profile failed:", error);
+  
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Error removing profile"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const hasMissing = (p: Profile) =>
     IMPORTANT_FIELDS.some((f) => {
       const val = p[f];
@@ -665,27 +712,37 @@ export default function ProfilesPage() {
               </div>
 
               {/* Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
-                <button
-                  onClick={save}
-                  disabled={loading}
-                  className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {loading
-                    ? "Saving…"
-                    : "Save changes"}
-                </button>
+              <div className="flex items-center justify-between gap-3 pt-4 border-t">
+  <div className="flex gap-3">
+    <button
+      onClick={save}
+      disabled={loading}
+      className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+    >
+      {loading ? "Saving…" : "Save changes"}
+    </button>
 
-                <button
-                  onClick={() => {
-                    setSelected(null);
-                    setForm({});
-                  }}
-                  className="border px-5 py-2 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
+    <button
+      onClick={() => {
+        setSelected(null);
+        setForm({});
+      }}
+      disabled={loading}
+      className="border px-5 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+    >
+      Cancel
+    </button>
+  </div>
+
+  <button
+    type="button"
+    onClick={removeProfile}
+    disabled={loading}
+    className="border border-red-300 bg-white px-5 py-2 rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-50"
+  >
+    {loading ? "Removing…" : "Remove profile"}
+  </button>
+</div>
             </div>
           )}
         </div>
