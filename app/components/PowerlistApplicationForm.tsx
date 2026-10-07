@@ -46,14 +46,62 @@ export default function PowerlistApplicationForm({
   ) {
     event.preventDefault();
 
+    if (loading) return;
+
     setLoading(true);
     setError("");
 
     try {
-      /*
-       * Convert the application into the Profile
-       * structure expected by /api/powerlist/add-user.
-       */
+      const title =
+        `${form.firstName} ${form.lastName}`.trim();
+
+      if (!title) {
+        throw new Error(
+          "Please enter your first and last name."
+        );
+      }
+
+      const payload = {
+        title,
+
+        email: form.email.trim(),
+
+        artist_title: form.jobTitle.trim(),
+
+        power_list_category:
+          form.category.trim(),
+
+        link: form.website.trim() || undefined,
+
+        social_icons: form.linkedinUrl.trim()
+          ? [
+              {
+                icon_type: "linkedin",
+                social_network_url:
+                  form.linkedinUrl.trim(),
+              },
+            ]
+          : [],
+
+        other: [
+          {
+            other_type: "company",
+            other_type_value:
+              form.company.trim(),
+          },
+          {
+            other_type: "application_reason",
+            other_type_value:
+              form.reason.trim(),
+          },
+        ],
+      };
+
+      console.log(
+        "Submitting Powerlist application:",
+        payload
+      );
+
       const response = await fetch(
         "/api/powerlist/add-user",
         {
@@ -62,48 +110,46 @@ export default function PowerlistApplicationForm({
             "Content-Type": "application/json",
           },
           credentials: "include",
-          body: JSON.stringify({
-            title: `${form.firstName} ${form.lastName}`.trim(),
-
-            email: form.email,
-
-            artist_title: form.jobTitle,
-
-            power_list_category: form.category,
-
-            link: form.website || undefined,
-
-            social_icons: form.linkedinUrl
-              ? [
-                  {
-                    icon_type: "linkedin",
-                    social_network_url:
-                      form.linkedinUrl,
-                  },
-                ]
-              : [],
-
-            other: [
-              {
-                other_type: "application_reason",
-                other_type_value: form.reason,
-              },
-
-              {
-                other_type: "company",
-                other_type_value: form.company,
-              },
-            ],
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
-      const data = await response.json();
+      const responseText = await response.text();
+
+      console.log(
+        "Powerlist API status:",
+        response.status
+      );
+
+      console.log(
+        "Powerlist API response:",
+        responseText
+      );
+
+      let data: any = {};
+
+      try {
+        data = responseText
+          ? JSON.parse(responseText)
+          : {};
+      } catch {
+        throw new Error(
+          `The server returned an invalid response (${response.status}).`
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Unable to submit your application."
+            data?.message ||
+            `Unable to submit application (${response.status}).`
+        );
+      }
+
+      if (!data.success) {
+        throw new Error(
+          data?.error ||
+            "The application could not be submitted."
         );
       }
 
@@ -117,7 +163,7 @@ export default function PowerlistApplicationForm({
       setError(
         error instanceof Error
           ? error.message
-          : "Something went wrong. Please try again."
+          : "Something went wrong while submitting your application."
       );
     } finally {
       setLoading(false);
@@ -126,7 +172,7 @@ export default function PowerlistApplicationForm({
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
+      <div className="mx-auto w-full max-w-2xl rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl text-green-700">
           ✓
         </div>
@@ -156,9 +202,8 @@ export default function PowerlistApplicationForm({
   }
 
   return (
-    <div className="w-full max-w-2xl">
-      {/* Introduction */}
-      <div className="mb-8">
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="mb-8 text-center">
         <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
           Women in FinTech Powerlist
         </p>
@@ -167,7 +212,7 @@ export default function PowerlistApplicationForm({
           We'd still love to hear from you
         </h1>
 
-        <div className="mt-5 space-y-3 text-gray-600 leading-relaxed">
+        <div className="mt-5 space-y-3 text-gray-600">
           <p>
             Unfortunately, you didn't make the
             Powerlist this time.
@@ -187,7 +232,6 @@ export default function PowerlistApplicationForm({
         </div>
       </div>
 
-      {/* Form */}
       <form
         onSubmit={handleSubmit}
         className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8"
@@ -195,7 +239,7 @@ export default function PowerlistApplicationForm({
         {/* Name */}
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-900">
+            <label className="mb-2 block text-sm font-medium">
               First name
             </label>
 
@@ -209,13 +253,13 @@ export default function PowerlistApplicationForm({
                 )
               }
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Jane"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-900">
+            <label className="mb-2 block text-sm font-medium">
               Last name
             </label>
 
@@ -229,7 +273,7 @@ export default function PowerlistApplicationForm({
                 )
               }
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Smith"
             />
           </div>
@@ -237,7 +281,7 @@ export default function PowerlistApplicationForm({
 
         {/* Email */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900">
+          <label className="mb-2 block text-sm font-medium">
             Email address
           </label>
 
@@ -248,14 +292,14 @@ export default function PowerlistApplicationForm({
               updateField("email", e.target.value)
             }
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="you@example.com"
           />
         </div>
 
         {/* LinkedIn */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900">
+          <label className="mb-2 block text-sm font-medium">
             LinkedIn profile
           </label>
 
@@ -269,14 +313,14 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="https://www.linkedin.com/in/your-name/"
           />
         </div>
 
-        {/* Job title */}
+        {/* Job */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900">
+          <label className="mb-2 block text-sm font-medium">
             Job title
           </label>
 
@@ -290,14 +334,14 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            placeholder="e.g. CEO, CTO, Founder"
+            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="CEO, CTO, Founder..."
           />
         </div>
 
         {/* Company */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900">
+          <label className="mb-2 block text-sm font-medium">
             Company
           </label>
 
@@ -311,14 +355,14 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Company name"
           />
         </div>
 
         {/* Category */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900">
+          <label className="mb-2 block text-sm font-medium">
             Powerlist category
           </label>
 
@@ -331,7 +375,7 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">
               Select a category
@@ -365,7 +409,7 @@ export default function PowerlistApplicationForm({
 
         {/* Website */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900">
+          <label className="mb-2 block text-sm font-medium">
             Website{" "}
             <span className="font-normal text-gray-400">
               (optional)
@@ -381,21 +425,20 @@ export default function PowerlistApplicationForm({
                 e.target.value
               )
             }
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="https://yourcompany.com"
           />
         </div>
 
-        {/* Reason */}
+        {/* About */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900">
+          <label className="mb-2 block text-sm font-medium">
             Tell us about yourself
           </label>
 
           <p className="mb-3 text-sm text-gray-500">
             Tell us about your achievements,
-            experience and impact in fintech. This will
-            help us consider your application.
+            experience and impact in fintech.
           </p>
 
           <textarea
@@ -408,7 +451,7 @@ export default function PowerlistApplicationForm({
             }
             required
             rows={7}
-            className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full resize-none rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Tell us about your work, achievements and impact..."
           />
         </div>
@@ -416,6 +459,7 @@ export default function PowerlistApplicationForm({
         {/* Error */}
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <strong>Unable to submit:</strong>{" "}
             {error}
           </div>
         )}
@@ -424,14 +468,14 @@ export default function PowerlistApplicationForm({
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-black px-6 py-4 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-black px-6 py-4 font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading
             ? "Submitting..."
             : "Submit for consideration"}
         </button>
 
-        <p className="text-center text-xs leading-relaxed text-gray-400">
+        <p className="text-center text-xs text-gray-400">
           Submitting this form does not guarantee
           inclusion in the Powerlist. All submissions
           are subject to review.
