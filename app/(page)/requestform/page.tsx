@@ -1,7 +1,7 @@
 // app/request-access/page.tsx
 // (or wherever you want the form to live)
 
-import PowerlistRequestForm from "@/components/PowerlistRequestForm";
+import PowerlistApplicationForm from "@/app/components/PowerlistApplicationForm";
 
 export default function RequestAccessPage() {
   return (
@@ -22,7 +22,7 @@ export default function RequestAccessPage() {
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-          <PowerlistRequestForm />
+          <PowerlistApplicationForm />
         </div>
       </div>
     </div>
