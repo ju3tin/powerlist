@@ -2,53 +2,52 @@
 
 import { FormEvent, useState } from "react";
 
-interface PowerlistApplicationFormProps {
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  linkedinUrl?: string;
-}
+type SocialIcon = {
+  icon_type: string;
+  social_network_url: string;
+};
 
 interface ApiResponse {
   success?: boolean;
   message?: string;
   error?: string;
   code?: string;
-  profile?: {
-    _id?: string;
-    id?: number;
-    title?: string;
-    email?: string;
-    slug?: string;
-  };
+  profile?: any;
 }
 
-export default function PowerlistApplicationForm({
-  email = "",
-  firstName = "",
-  lastName = "",
-  linkedinUrl = "",
-}: PowerlistApplicationFormProps) {
+export default function ProfileForm() {
   const [form, setForm] = useState({
-    firstName,
-    lastName,
-    email,
-    linkedinUrl,
-    jobTitle: "",
-    company: "",
-    category: "",
-    website: "",
-    reason: "",
+    id: "",
+    title: "",
+    email: "",
+    artist_title: "",
+    date: "",
+    content: "",
+    slug: "",
+    featured_image: "",
+    power_list_category: "",
+    link: "",
+    count: "",
+    company_logo: "",
+    full_slug: "",
   });
 
-  const [loading, setLoading] = useState(false);
+  const [socialIcons, setSocialIcons] =
+    useState<SocialIcon[]>([]);
 
-  // API response shown directly on screen
+  const [saving, setSaving] = useState(false);
+
+  const [message, setMessage] = useState("");
+
   const [apiResponse, setApiResponse] =
     useState<ApiResponse | null>(null);
 
   const [apiStatus, setApiStatus] =
     useState<number | null>(null);
+
+  // --------------------------------------------------
+  // FORM
+  // --------------------------------------------------
 
   function updateField(
     field: keyof typeof form,
@@ -58,96 +57,112 @@ export default function PowerlistApplicationForm({
       ...previous,
       [field]: value,
     }));
-
-    // Clear previous API response when user changes
-    // the form and tries again.
-    setApiResponse(null);
-    setApiStatus(null);
   }
+
+  function generateSlug(title: string) {
+    return title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+  }
+
+  function handleTitleChange(value: string) {
+    setForm((previous) => ({
+      ...previous,
+      title: value,
+      slug:
+        previous.slug ||
+        generateSlug(value),
+    }));
+  }
+
+  // --------------------------------------------------
+  // SOCIAL ICONS
+  // --------------------------------------------------
+
+  function addSocialIcon() {
+    setSocialIcons((previous) => [
+      ...previous,
+      {
+        icon_type: "",
+        social_network_url: "",
+      },
+    ]);
+  }
+
+  function updateSocialIcon(
+    index: number,
+    field: keyof SocialIcon,
+    value: string
+  ) {
+    setSocialIcons((previous) =>
+      previous.map((social, i) =>
+        i === index
+          ? {
+              ...social,
+              [field]: value,
+            }
+          : social
+      )
+    );
+  }
+
+  function removeSocialIcon(index: number) {
+    setSocialIcons((previous) =>
+      previous.filter(
+        (_, i) => i !== index
+      )
+    );
+  }
+
+  // --------------------------------------------------
+  // SUBMIT
+  // --------------------------------------------------
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (loading) return;
+    if (saving) return;
 
-    setLoading(true);
+    setSaving(true);
+
+    setMessage("");
+
     setApiResponse(null);
+
     setApiStatus(null);
 
     try {
-      const title =
-        `${form.firstName} ${form.lastName}`.trim();
-
-      if (!title) {
-        setApiResponse({
-          success: false,
-          error:
-            "Please enter your first and last name.",
-          code: "VALIDATION_ERROR",
-        });
-
-        return;
-      }
-
       const payload = {
-        title,
+        ...form,
+
+        id: Number(form.id),
 
         email: form.email
           .trim()
           .toLowerCase(),
 
-        artist_title:
-          form.jobTitle.trim(),
-
-        power_list_category:
-          form.category.trim(),
-
-        link:
-          form.website.trim() ||
-          undefined,
-
-        social_icons:
-          form.linkedinUrl.trim()
-            ? [
-                {
-                  icon_type: "linkedin",
-                  social_network_url:
-                    form.linkedinUrl.trim(),
-                },
-              ]
-            : [],
-
-        other: [
-          {
-            other_type: "company",
-            other_type_value:
-              form.company.trim(),
-          },
-          {
-            other_type: "application_reason",
-            other_type_value:
-              form.reason.trim(),
-          },
-        ],
+        social_icons: socialIcons,
       };
 
       console.log(
-        "POWERLIST API REQUEST:",
+        "PROFILE API REQUEST:",
         payload
       );
 
       const response = await fetch(
-        "/api/powerlist/add-user",
+        "/api/singleprofile1",
         {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
-
-          credentials: "include",
 
           body: JSON.stringify(payload),
         }
@@ -155,233 +170,172 @@ export default function PowerlistApplicationForm({
 
       setApiStatus(response.status);
 
-      const responseText =
-        await response.text();
+      const data: ApiResponse =
+        await response.json();
 
       console.log(
-        "POWERLIST API STATUS:",
+        "PROFILE API STATUS:",
         response.status
       );
 
       console.log(
-        "POWERLIST API RESPONSE:",
-        responseText
+        "PROFILE API RESPONSE:",
+        data
       );
 
-      let data: ApiResponse;
-
-      try {
-        data = responseText
-          ? JSON.parse(responseText)
-          : {
-              success: false,
-              error:
-                "The API returned an empty response.",
-            };
-      } catch {
-        data = {
-          success: false,
-          error:
-            responseText ||
-            "The API returned an invalid JSON response.",
-        };
-      }
-
-      // Store EXACT API response
+      // Show exact API response
       setApiResponse(data);
 
       if (!response.ok) {
+        setMessage(
+          data.error ||
+            "Failed to create profile"
+        );
+
         return;
       }
 
-      if (data.success !== true) {
-        return;
-      }
-    } catch (error) {
+      setMessage(
+        data.message ||
+          "Profile created successfully."
+      );
+
+      // Reset form
+      setForm({
+        id: "",
+        title: "",
+        email: "",
+        artist_title: "",
+        date: "",
+        content: "",
+        slug: "",
+        featured_image: "",
+        power_list_category: "",
+        link: "",
+        count: "",
+        company_logo: "",
+        full_slug: "",
+      });
+
+      setSocialIcons([]);
+    } catch (error: any) {
       console.error(
-        "POWERLIST API REQUEST FAILED:",
+        "Create profile error:",
         error
       );
 
-      setApiStatus(null);
-
-      setApiResponse({
+      const errorResponse = {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to connect to the API.",
-        code: "NETWORK_ERROR",
-      });
+          error?.message ||
+          "Something went wrong",
+        code: "REQUEST_ERROR",
+      };
+
+      setApiResponse(errorResponse);
+
+      setMessage(
+        errorResponse.error
+      );
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
-  const success =
-    apiResponse?.success === true;
-
-  const error =
-    apiResponse?.success === false;
-
   return (
-    <div className="mx-auto w-full max-w-2xl">
-
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto max-w-4xl space-y-8 text-black"
+    >
       {/* ------------------------------------------------ */}
       {/* HEADER */}
       {/* ------------------------------------------------ */}
 
-      <div className="mb-8 text-center">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-          Women in FinTech Powerlist
-        </p>
-
-        <h1 className="text-3xl font-bold tracking-tight text-black md:text-4xl">
-          We'd still love to hear from you
+      <div>
+        <h1 className="text-3xl font-bold text-black">
+          Add Profile
         </h1>
 
-        <div className="mt-5 space-y-3 text-black">
-          <p>
-            Unfortunately, you didn't make the
-            Powerlist this time.
-          </p>
-
-          <p>
-            But that doesn't mean this is the end
-            of the road. We'd love to learn a
-            little more about you and your work.
-          </p>
-
-          <p>
-            Fill in the form below and we may be
-            able to add you to this year's
-            Powerlist, or consider you for next
-            year's list.
-          </p>
-        </div>
+        <p className="mt-2 text-gray-600">
+          Create a new unverified profile.
+        </p>
       </div>
 
       {/* ------------------------------------------------ */}
       {/* API RESPONSE */}
       {/* ------------------------------------------------ */}
 
-      {apiResponse && (
+      {(message || apiResponse) && (
         <div
-          className={`mb-6 rounded-xl border p-5 ${
-            success
+          className={`rounded-lg border p-4 ${
+            apiResponse?.success === true
               ? "border-green-300 bg-green-50"
               : "border-red-300 bg-red-50"
           }`}
         >
-          <div className="mb-3 flex items-center justify-between">
-            <h2
-              className={`text-lg font-bold ${
-                success
+          <div className="flex items-center justify-between">
+            <strong
+              className={
+                apiResponse?.success === true
                   ? "text-green-800"
                   : "text-red-800"
-              }`}
+              }
             >
-              {success
-                ? "API Response — Success"
-                : "API Response — Error"}
-            </h2>
+              {apiResponse?.success === true
+                ? "Success"
+                : "API Response"}
+            </strong>
 
             {apiStatus && (
-              <span
-                className={`rounded-md px-2 py-1 text-xs font-bold ${
-                  success
-                    ? "bg-green-200 text-green-800"
-                    : "bg-red-200 text-red-800"
-                }`}
-              >
+              <span className="rounded bg-black px-2 py-1 text-xs font-semibold text-white">
                 HTTP {apiStatus}
               </span>
             )}
           </div>
 
-          {/* Main API message */}
-
-          {apiResponse.message && (
-            <p
-              className={`mb-2 font-medium ${
-                success
-                  ? "text-green-800"
-                  : "text-red-800"
-              }`}
-            >
-              {apiResponse.message}
+          {message && (
+            <p className="mt-2 text-black">
+              {message}
             </p>
           )}
 
-          {apiResponse.error && (
-            <p className="mb-2 font-medium text-red-800">
+          {apiResponse?.error && (
+            <p className="mt-2 font-medium text-red-700">
               {apiResponse.error}
             </p>
           )}
 
-          {/* API code */}
-
-          {apiResponse.code && (
-            <p className="mb-3 text-sm text-gray-700">
-              <strong>Code:</strong>{" "}
-              {apiResponse.code}
+          {apiResponse?.code && (
+            <p className="mt-2 text-sm text-gray-700">
+              Code:{" "}
+              <strong>
+                {apiResponse.code}
+              </strong>
             </p>
           )}
 
-          {/* Created profile */}
+          {apiResponse?.profile && (
+            <details className="mt-4">
+              <summary className="cursor-pointer font-medium text-black">
+                View created profile
+              </summary>
 
-          {apiResponse.profile && (
-            <div className="mt-4 rounded-lg border border-green-200 bg-white p-4 text-sm text-black">
-              <h3 className="mb-3 font-semibold">
-                Profile returned by API
-              </h3>
-
-              {apiResponse.profile.id !==
-                undefined && (
-                <p>
-                  <strong>ID:</strong>{" "}
-                  {apiResponse.profile.id}
-                </p>
-              )}
-
-              {apiResponse.profile.title && (
-                <p>
-                  <strong>Name:</strong>{" "}
-                  {apiResponse.profile.title}
-                </p>
-              )}
-
-              {apiResponse.profile.email && (
-                <p>
-                  <strong>Email:</strong>{" "}
-                  {apiResponse.profile.email}
-                </p>
-              )}
-
-              {apiResponse.profile.slug && (
-                <p>
-                  <strong>Slug:</strong>{" "}
-                  {apiResponse.profile.slug}
-                </p>
-              )}
-
-              {apiResponse.profile._id && (
-                <p className="break-all">
-                  <strong>Mongo ID:</strong>{" "}
-                  {apiResponse.profile._id}
-                </p>
-              )}
-            </div>
+              <pre className="mt-3 overflow-auto rounded-lg bg-black p-4 text-xs text-white">
+                {JSON.stringify(
+                  apiResponse.profile,
+                  null,
+                  2
+                )}
+              </pre>
+            </details>
           )}
 
-          {/* Raw JSON */}
-
           <details className="mt-4">
-            <summary className="cursor-pointer text-sm font-semibold text-black">
+            <summary className="cursor-pointer text-sm font-medium text-black">
               View raw API response
             </summary>
 
-            <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-black p-4 text-xs text-white">
+            <pre className="mt-3 overflow-auto rounded-lg bg-gray-900 p-4 text-xs text-white">
               {JSON.stringify(
                 apiResponse,
                 null,
@@ -393,266 +347,478 @@ export default function PowerlistApplicationForm({
       )}
 
       {/* ------------------------------------------------ */}
-      {/* FORM */}
+      {/* PROFILE INFORMATION */}
       {/* ------------------------------------------------ */}
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8"
-      >
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-6 text-xl font-semibold text-black">
+          Profile Information
+        </h2>
 
-        {/* First / Last */}
+        <div className="grid gap-5 md:grid-cols-2">
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          {/* Profile ID */}
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-black">
-              First name
+            <label className="mb-2 block font-medium text-black">
+              Profile ID *
+            </label>
+
+            <input
+              type="number"
+              required
+              value={form.id}
+              onChange={(e) =>
+                updateField(
+                  "id",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+            />
+          </div>
+
+          {/* Date */}
+
+          <div>
+            <label className="mb-2 block font-medium text-black">
+              Date
             </label>
 
             <input
               type="text"
-              value={form.firstName}
+              placeholder="2026"
+              value={form.date}
               onChange={(e) =>
                 updateField(
-                  "firstName",
+                  "date",
                   e.target.value
                 )
               }
-              required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Jane"
+              className="w-full rounded-lg border p-3 text-black"
             />
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-black">
-              Last name
+          {/* Title */}
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block font-medium text-black">
+              Title *
             </label>
 
             <input
               type="text"
-              value={form.lastName}
+              required
+              value={form.title}
               onChange={(e) =>
-                updateField(
-                  "lastName",
+                handleTitleChange(
                   e.target.value
                 )
               }
+              className="w-full rounded-lg border p-3 text-black"
+              placeholder="Rachel Logan"
+            />
+          </div>
+
+          {/* Email */}
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block font-medium text-black">
+              Email *
+            </label>
+
+            <input
+              type="email"
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Smith"
+              value={form.email}
+              onChange={(e) =>
+                updateField(
+                  "email",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+              placeholder="rachel@example.com"
+            />
+
+            <p className="mt-1 text-xs text-gray-500">
+              Email addresses can only be used
+              once.
+            </p>
+          </div>
+
+          {/* Artist Title */}
+
+          <div>
+            <label className="mb-2 block font-medium text-black">
+              Artist Title
+            </label>
+
+            <input
+              type="text"
+              value={form.artist_title}
+              onChange={(e) =>
+                updateField(
+                  "artist_title",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+            />
+          </div>
+
+          {/* Power List Category */}
+
+          <div>
+            <label className="mb-2 block font-medium text-black">
+              Power List Category
+            </label>
+
+            <input
+              type="text"
+              value={
+                form.power_list_category
+              }
+              onChange={(e) =>
+                updateField(
+                  "power_list_category",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+              placeholder="Women in FinTech"
             />
           </div>
 
         </div>
+      </section>
 
-        {/* Email */}
+      {/* ------------------------------------------------ */}
+      {/* URLS */}
+      {/* ------------------------------------------------ */}
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-black">
-            Email address
-          </label>
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-6 text-xl font-semibold text-black">
+          URLs
+        </h2>
 
-          <input
-            type="email"
-            value={form.email}
-            onChange={(e) =>
-              updateField(
-                "email",
-                e.target.value
-              )
-            }
-            required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="you@example.com"
-          />
+        <div className="space-y-5">
+
+          {/* Slug */}
+
+          <div>
+            <label className="mb-2 block font-medium text-black">
+              Slug *
+            </label>
+
+            <input
+              type="text"
+              required
+              value={form.slug}
+              onChange={(e) =>
+                updateField(
+                  "slug",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+              placeholder="rachel-logan"
+            />
+          </div>
+
+          {/* Full Slug */}
+
+          <div>
+            <label className="mb-2 block font-medium text-black">
+              Full Slug
+            </label>
+
+            <input
+              type="text"
+              value={form.full_slug}
+              onChange={(e) =>
+                updateField(
+                  "full_slug",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+              placeholder="/women-in-fintech/rachel-logan"
+            />
+          </div>
+
+          {/* Link */}
+
+          <div>
+            <label className="mb-2 block font-medium text-black">
+              Link
+            </label>
+
+            <input
+              type="url"
+              value={form.link}
+              onChange={(e) =>
+                updateField(
+                  "link",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+              placeholder="https://example.com"
+            />
+          </div>
+
         </div>
+      </section>
 
-        {/* LinkedIn */}
+      {/* ------------------------------------------------ */}
+      {/* IMAGES */}
+      {/* ------------------------------------------------ */}
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-black">
-            LinkedIn profile
-          </label>
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-6 text-xl font-semibold text-black">
+          Images
+        </h2>
 
-          <input
-            type="url"
-            value={form.linkedinUrl}
-            onChange={(e) =>
-              updateField(
-                "linkedinUrl",
-                e.target.value
-              )
-            }
-            required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="https://www.linkedin.com/in/your-name/"
-          />
+        <div className="space-y-5">
+
+          {/* Featured Image */}
+
+          <div>
+            <label className="mb-2 block font-medium text-black">
+              Featured Image
+            </label>
+
+            <input
+              type="url"
+              value={
+                form.featured_image
+              }
+              onChange={(e) =>
+                updateField(
+                  "featured_image",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+              placeholder="https://..."
+            />
+
+            {form.featured_image && (
+              <img
+                src={
+                  form.featured_image
+                }
+                alt="Preview"
+                className="mt-4 h-48 w-full rounded-lg object-cover"
+              />
+            )}
+          </div>
+
+          {/* Company Logo */}
+
+          <div>
+            <label className="mb-2 block font-medium text-black">
+              Company Logo
+            </label>
+
+            <input
+              type="url"
+              value={
+                form.company_logo
+              }
+              onChange={(e) =>
+                updateField(
+                  "company_logo",
+                  e.target.value
+                )
+              }
+              className="w-full rounded-lg border p-3 text-black"
+              placeholder="https://..."
+            />
+
+            {form.company_logo && (
+              <img
+                src={
+                  form.company_logo
+                }
+                alt="Company logo"
+                className="mt-4 h-24 max-w-xs object-contain"
+              />
+            )}
+          </div>
+
         </div>
+      </section>
 
-        {/* Job title */}
+      {/* ------------------------------------------------ */}
+      {/* CONTENT */}
+      {/* ------------------------------------------------ */}
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-black">
-            Job title
-          </label>
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-6 text-xl font-semibold text-black">
+          Content
+        </h2>
 
-          <input
-            type="text"
-            value={form.jobTitle}
-            onChange={(e) =>
-              updateField(
-                "jobTitle",
-                e.target.value
-              )
-            }
-            required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="CEO, CTO, Founder..."
-          />
-        </div>
+        <textarea
+          value={form.content}
+          onChange={(e) =>
+            updateField(
+              "content",
+              e.target.value
+            )
+          }
+          rows={12}
+          className="w-full rounded-lg border p-3 text-black"
+          placeholder="Profile content..."
+        />
+      </section>
 
-        {/* Company */}
+      {/* ------------------------------------------------ */}
+      {/* SOCIAL ICONS */}
+      {/* ------------------------------------------------ */}
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-black">
-            Company
-          </label>
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center justify-between">
 
-          <input
-            type="text"
-            value={form.company}
-            onChange={(e) =>
-              updateField(
-                "company",
-                e.target.value
-              )
-            }
-            required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Company name"
-          />
-        </div>
+          <h2 className="text-xl font-semibold text-black">
+            Social Icons
+          </h2>
 
-        {/* Category */}
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-black">
-            Powerlist category
-          </label>
-
-          <select
-            value={form.category}
-            onChange={(e) =>
-              updateField(
-                "category",
-                e.target.value
-              )
-            }
-            required
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-black outline-none focus:ring-2 focus:ring-blue-500"
+          <button
+            type="button"
+            onClick={addSocialIcon}
+            className="rounded-lg bg-black px-4 py-2 text-white"
           >
-            <option value="">
-              Select a category
-            </option>
+            + Add Social
+          </button>
 
-            <option value="Senior">
-              Senior
-            </option>
-
-            <option value="Rising Star">
-              Rising Star
-            </option>
-
-            <option value="Entrepreneur">
-              Entrepreneur
-            </option>
-
-            <option value="Investor">
-              Investor
-            </option>
-
-            <option value="Founder">
-              Founder
-            </option>
-
-            <option value="Other">
-              Other
-            </option>
-          </select>
         </div>
 
-        {/* Website */}
+        <div className="space-y-4">
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-black">
-            Website{" "}
-            <span className="font-normal text-gray-400">
-              (optional)
-            </span>
-          </label>
+          {socialIcons.map(
+            (social, index) => (
+              <div
+                key={index}
+                className="rounded-lg border p-4"
+              >
+                <div className="grid gap-4 md:grid-cols-[200px_1fr_auto]">
 
-          <input
-            type="url"
-            value={form.website}
-            onChange={(e) =>
-              updateField(
-                "website",
-                e.target.value
-              )
-            }
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="https://yourcompany.com"
-          />
+                  <input
+                    type="text"
+                    placeholder="linkedin"
+                    value={
+                      social.icon_type
+                    }
+                    onChange={(e) =>
+                      updateSocialIcon(
+                        index,
+                        "icon_type",
+                        e.target.value
+                      )
+                    }
+                    className="rounded-lg border p-3 text-black"
+                  />
+
+                  <input
+                    type="url"
+                    placeholder="https://linkedin.com/..."
+                    value={
+                      social.social_network_url
+                    }
+                    onChange={(e) =>
+                      updateSocialIcon(
+                        index,
+                        "social_network_url",
+                        e.target.value
+                      )
+                    }
+                    className="rounded-lg border p-3 text-black"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeSocialIcon(
+                        index
+                      )
+                    }
+                    className="rounded-lg border px-4 py-2 text-red-600"
+                  >
+                    Remove
+                  </button>
+
+                </div>
+              </div>
+            )
+          )}
+
+          {socialIcons.length === 0 && (
+            <p className="text-gray-500">
+              No social links added.
+            </p>
+          )}
+
+        </div>
+      </section>
+
+      {/* ------------------------------------------------ */}
+      {/* COUNT */}
+      {/* ------------------------------------------------ */}
+
+      <section className="rounded-xl border bg-white p-6 shadow-sm">
+
+        <h2 className="mb-6 text-xl font-semibold text-black">
+          Other
+        </h2>
+
+        <label className="mb-2 block font-medium text-black">
+          Count
+        </label>
+
+        <input
+          type="text"
+          value={form.count}
+          onChange={(e) =>
+            updateField(
+              "count",
+              e.target.value
+            )
+          }
+          className="w-full rounded-lg border p-3 text-black"
+          placeholder="1"
+        />
+
+        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <strong>
+            Verification status:
+          </strong>{" "}
+          This profile will automatically be
+          created as{" "}
+          <strong>unverified</strong>.
         </div>
 
-        {/* Reason */}
+      </section>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-black">
-            Tell us about yourself
-          </label>
+      {/* ------------------------------------------------ */}
+      {/* SUBMIT */}
+      {/* ------------------------------------------------ */}
 
-          <p className="mb-3 text-sm text-gray-600">
-            Tell us about your achievements,
-            experience and impact in fintech.
-          </p>
-
-          <textarea
-            value={form.reason}
-            onChange={(e) =>
-              updateField(
-                "reason",
-                e.target.value
-              )
-            }
-            required
-            rows={7}
-            className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-black placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Tell us about your work, achievements and impact..."
-          />
-        </div>
-
-        {/* Submit */}
+      <div className="flex justify-end">
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-black px-6 py-4 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={saving}
+          className="rounded-lg bg-black px-8 py-3 font-semibold text-white disabled:opacity-50"
         >
-          {loading
-            ? "Submitting..."
-            : "Submit for consideration"}
+          {saving
+            ? "Creating..."
+            : "Create Profile"}
         </button>
 
-        <p className="text-center text-xs text-gray-500">
-          Submitting this form does not guarantee
-          inclusion in the Powerlist. All
-          submissions are subject to review.
-        </p>
+      </div>
 
-      </form>
-    </div>
+    </form>
   );
 }
