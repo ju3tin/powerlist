@@ -45,6 +45,10 @@ export async function POST(req: Request) {
       other,
     } = body;
 
+    // --------------------------------------------------
+    // Required fields
+    // --------------------------------------------------
+
     if (!title || !String(title).trim()) {
       return NextResponse.json(
         {
@@ -75,10 +79,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (
-      !power_list_category ||
-      !String(power_list_category).trim()
-    ) {
+    if (!power_list_category || !String(power_list_category).trim()) {
       return NextResponse.json(
         {
           success: false,
@@ -88,23 +89,53 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check whether this email already exists
-    const existingEmail = await Profile.findOne({
-      email: String(email).trim().toLowerCase(),
-    }).lean();
+    // --------------------------------------------------
+    // NORMALISE EMAIL
+    // --------------------------------------------------
 
-    if (existingEmail) {
+    const cleanEmail = String(email)
+      .trim()
+      .toLowerCase();
+
+    // --------------------------------------------------
+    // CHECK EMAIL BEFORE CREATING ANYTHING
+    // --------------------------------------------------
+
+    const existingProfile = await Profile.findOne({
+      email: cleanEmail,
+    })
+      .select("_id id title email slug")
+      .lean();
+
+    if (existingProfile) {
+      console.log(
+        "POWERLIST DUPLICATE EMAIL:",
+        cleanEmail,
+        existingProfile
+      );
+
       return NextResponse.json(
         {
           success: false,
           error:
-            "A Powerlist profile already exists for this email address.",
+            "This email address is already registered on the Powerlist.",
+          code: "EMAIL_ALREADY_USED",
+          profile: {
+            id: existingProfile.id,
+            title: existingProfile.title,
+            slug: existingProfile.slug,
+          },
         },
-        { status: 409 }
+        {
+          status: 409,
+        }
       );
     }
 
-    // Generate a unique numeric ID
+    // --------------------------------------------------
+    // GET NEXT ID
+    // --------------------------------------------------
+
     const lastProfile = await Profile.findOne()
       .sort({ id: -1 })
       .select("id")
@@ -117,12 +148,18 @@ export async function POST(req: Request) {
         ? lastId + 1
         : 1;
 
-    // Generate unique slug
+    // --------------------------------------------------
+    // CREATE UNIQUE SLUG
+    // --------------------------------------------------
+
     const baseSlug = makeSlug(String(title));
 
     const slug = await getUniqueSlug(baseSlug);
 
-    // Existing other values
+    // --------------------------------------------------
+    // CLEAN OTHER DATA
+    // --------------------------------------------------
+
     const profileOther = Array.isArray(other)
       ? other.filter(
           (item: any) =>
@@ -132,20 +169,22 @@ export async function POST(req: Request) {
         )
       : [];
 
-    // Always mark applications as unverified
+    // Always mark new applications as unverified
     profileOther.push({
       other_type: "verification_status",
       other_type_value: "unverified",
     });
+
+    // --------------------------------------------------
+    // CREATE PROFILE
+    // --------------------------------------------------
 
     const profile = await Profile.create({
       id: newId,
 
       title: String(title).trim(),
 
-      email: String(email)
-        .trim()
-        .toLowerCase(),
+      email: cleanEmail,
 
       artist_title: artist_title
         ? String(artist_title).trim()
@@ -200,13 +239,32 @@ export async function POST(req: Request) {
           "User added to the Powerlist as unverified",
         profile,
       },
-      { status: 201 }
+      {
+        status: 201,
+      }
     );
   } catch (error: any) {
     console.error(
       "POWERLIST ADD USER ERROR:",
       error
     );
+
+    // Handle MongoDB duplicate key errors too.
+    // This protects against two requests arriving
+    // at almost exactly the same time.
+    if (error?.code === 11000) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "This email address is already registered on the Powerlist.",
+          code: "EMAIL_ALREADY_USED",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
 
     return NextResponse.json(
       {
@@ -215,7 +273,9 @@ export async function POST(req: Request) {
           error?.message ||
           "Failed to add user to Powerlist",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
