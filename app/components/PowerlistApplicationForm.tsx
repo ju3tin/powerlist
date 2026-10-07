@@ -50,15 +50,51 @@ export default function PowerlistApplicationForm({
     setError("");
 
     try {
+      /*
+       * Convert the application into the Profile
+       * structure expected by /api/powerlist/add-user.
+       */
       const response = await fetch(
-        "/api/powerlist/apply",
+        "/api/powerlist/add-user",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           credentials: "include",
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            title: `${form.firstName} ${form.lastName}`.trim(),
+
+            email: form.email,
+
+            artist_title: form.jobTitle,
+
+            power_list_category: form.category,
+
+            link: form.website || undefined,
+
+            social_icons: form.linkedinUrl
+              ? [
+                  {
+                    icon_type: "linkedin",
+                    social_network_url:
+                      form.linkedinUrl,
+                  },
+                ]
+              : [],
+
+            other: [
+              {
+                other_type: "application_reason",
+                other_type_value: form.reason,
+              },
+
+              {
+                other_type: "company",
+                other_type_value: form.company,
+              },
+            ],
+          }),
         }
       );
 
@@ -67,12 +103,17 @@ export default function PowerlistApplicationForm({
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Something went wrong. Please try again."
+            "Unable to submit your application."
         );
       }
 
       setSubmitted(true);
     } catch (error) {
+      console.error(
+        "Powerlist application failed:",
+        error
+      );
+
       setError(
         error instanceof Error
           ? error.message
@@ -86,54 +127,70 @@ export default function PowerlistApplicationForm({
   if (submitted) {
     return (
       <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-2xl">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl text-green-700">
           ✓
         </div>
 
-        <h2 className="text-2xl font-semibold text-gray-900">
-          Thank you for applying
+        <h2 className="text-2xl font-bold text-gray-900">
+          Thank you
         </h2>
 
-        <p className="mx-auto mt-3 max-w-xl text-gray-600">
+        <p className="mx-auto mt-4 max-w-xl text-gray-600">
           We've received your details and will keep
-          your information in consideration for the
-          Women in FinTech Powerlist.
+          you in consideration for the Women in
+          FinTech Powerlist.
         </p>
 
-        <p className="mx-auto mt-2 max-w-xl text-sm text-gray-500">
-          You may be considered for this year's
-          Powerlist or a future Powerlist.
+        <p className="mx-auto mt-3 max-w-xl text-gray-600">
+          We may be able to add you to this year's
+          Powerlist, or consider you for next year's
+          list.
+        </p>
+
+        <p className="mt-6 text-sm text-gray-500">
+          Your profile has been added for review as an
+          unverified Powerlist entry.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="w-full max-w-2xl">
       {/* Introduction */}
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+      <div className="mb-8">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+          Women in FinTech Powerlist
+        </p>
+
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
           We'd still love to hear from you
-        </h2>
+        </h1>
 
-        <p className="mx-auto mt-4 max-w-xl text-gray-600 leading-relaxed">
-          Unfortunately, you didn't make the Powerlist
-          this time. However, that doesn't mean this
-          is the end of the road.
-        </p>
+        <div className="mt-5 space-y-3 text-gray-600 leading-relaxed">
+          <p>
+            Unfortunately, you didn't make the
+            Powerlist this time.
+          </p>
 
-        <p className="mx-auto mt-3 max-w-xl text-gray-600 leading-relaxed">
-          Fill in the form below and tell us a little
-          more about yourself. We may be able to add
-          you to the Powerlist this year, or consider
-          you for next year's list.
-        </p>
+          <p>
+            But that doesn't mean this is the end of
+            the road. We'd love to learn a little more
+            about you and your work.
+          </p>
+
+          <p>
+            Fill in the form below and we may be able
+            to add you to this year's Powerlist, or
+            consider you for next year's list.
+          </p>
+        </div>
       </div>
 
       {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 rounded-2xl border bg-white p-6 shadow-sm md:p-8"
+        className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8"
       >
         {/* Name */}
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -152,7 +209,7 @@ export default function PowerlistApplicationForm({
                 )
               }
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               placeholder="Jane"
             />
           </div>
@@ -172,7 +229,7 @@ export default function PowerlistApplicationForm({
                 )
               }
               required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               placeholder="Smith"
             />
           </div>
@@ -191,7 +248,7 @@ export default function PowerlistApplicationForm({
               updateField("email", e.target.value)
             }
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             placeholder="you@example.com"
           />
         </div>
@@ -212,7 +269,7 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             placeholder="https://www.linkedin.com/in/your-name/"
           />
         </div>
@@ -233,7 +290,7 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             placeholder="e.g. CEO, CTO, Founder"
           />
         </div>
@@ -254,7 +311,7 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             placeholder="Company name"
           />
         </div>
@@ -274,7 +331,7 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           >
             <option value="">
               Select a category
@@ -309,9 +366,9 @@ export default function PowerlistApplicationForm({
         {/* Website */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-900">
-            Website
-            <span className="ml-2 font-normal text-gray-400">
-              Optional
+            Website{" "}
+            <span className="font-normal text-gray-400">
+              (optional)
             </span>
           </label>
 
@@ -324,21 +381,21 @@ export default function PowerlistApplicationForm({
                 e.target.value
               )
             }
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             placeholder="https://yourcompany.com"
           />
         </div>
 
-        {/* About */}
+        {/* Reason */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-900">
             Tell us about yourself
           </label>
 
-          <p className="mb-2 text-sm text-gray-500">
+          <p className="mb-3 text-sm text-gray-500">
             Tell us about your achievements,
-            experience and why you feel you should be
-            considered for the Powerlist.
+            experience and impact in fintech. This will
+            help us consider your application.
           </p>
 
           <textarea
@@ -350,8 +407,8 @@ export default function PowerlistApplicationForm({
               )
             }
             required
-            rows={6}
-            className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            rows={7}
+            className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             placeholder="Tell us about your work, achievements and impact..."
           />
         </div>
@@ -367,17 +424,17 @@ export default function PowerlistApplicationForm({
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-black px-6 py-3.5 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-black px-6 py-4 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading
             ? "Submitting..."
             : "Submit for consideration"}
         </button>
 
-        <p className="text-center text-xs text-gray-400">
-          Submission does not guarantee inclusion in
-          the Powerlist. All applications are subject
-          to review.
+        <p className="text-center text-xs leading-relaxed text-gray-400">
+          Submitting this form does not guarantee
+          inclusion in the Powerlist. All submissions
+          are subject to review.
         </p>
       </form>
     </div>
