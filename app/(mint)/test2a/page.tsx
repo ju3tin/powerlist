@@ -2,8 +2,15 @@
 
 import {
   FormEvent,
+  useEffect,
   useState,
 } from "react";
+
+type Stage =
+  | "form"
+  | "preview"
+  | "ipfs"
+  | "minted";
 
 type TicketResult = {
   cid: string;
@@ -16,6 +23,477 @@ type MintResult = {
   tokenId: string | null;
   image: string;
   blockNumber: string;
+};
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background:
+      "radial-gradient(circle at 10% 10%, rgba(30,99,241,0.16), transparent 30%), radial-gradient(circle at 90% 90%, rgba(91,154,255,0.10), transparent 30%), #07111f",
+    color: "#ffffff",
+    padding: "40px 20px 70px",
+    fontFamily:
+      "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+  },
+
+  container: {
+    width: "100%",
+    maxWidth: "1180px",
+    margin: "0 auto",
+  },
+
+  header: {
+    marginBottom: "35px",
+  },
+
+  brandRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "20px",
+    marginBottom: "45px",
+  },
+
+  brand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+
+  logo: {
+    width: "46px",
+    height: "46px",
+    borderRadius: "14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background:
+      "linear-gradient(135deg, #1e63f1, #5b9aff)",
+    boxShadow:
+      "0 10px 35px rgba(30,99,241,0.35)",
+    fontSize: "14px",
+    fontWeight: 900,
+  },
+
+  brandName: {
+    fontSize: "15px",
+    fontWeight: 700,
+    color: "#ffffff",
+  },
+
+  brandSub: {
+    marginTop: "3px",
+    fontSize: "12px",
+    color: "#6f8198",
+  },
+
+  network: {
+    padding: "9px 14px",
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#91a4bb",
+    fontSize: "12px",
+    fontWeight: 600,
+  },
+
+  eyebrow: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "7px 12px",
+    borderRadius: "999px",
+    border: "1px solid rgba(91,154,255,0.20)",
+    background: "rgba(30,99,241,0.10)",
+    color: "#73a5ff",
+    fontSize: "11px",
+    fontWeight: 800,
+    letterSpacing: "0.14em",
+  },
+
+  dot: {
+    width: "6px",
+    height: "6px",
+    borderRadius: "50%",
+    background: "#5b9aff",
+    boxShadow: "0 0 10px rgba(91,154,255,0.9)",
+  },
+
+  title: {
+    margin: "18px 0 0",
+    fontSize: "clamp(36px, 6vw, 64px)",
+    lineHeight: 1.02,
+    letterSpacing: "-0.045em",
+    fontWeight: 800,
+  },
+
+  titleGradient: {
+    background:
+      "linear-gradient(90deg, #5b9aff, #9cc4ff, #7dd3fc)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+  },
+
+  subtitle: {
+    maxWidth: "700px",
+    marginTop: "20px",
+    color: "#8496ab",
+    fontSize: "15px",
+    lineHeight: 1.8,
+  },
+
+  progress: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(4, minmax(0, 1fr))",
+    gap: "8px",
+    padding: "8px",
+    marginBottom: "28px",
+    borderRadius: "18px",
+    border:
+      "1px solid rgba(255,255,255,0.08)",
+    background:
+      "rgba(255,255,255,0.035)",
+  },
+
+  progressItem: {
+    padding: "13px 8px",
+    borderRadius: "13px",
+    textAlign: "center" as const,
+  },
+
+  progressNumber: {
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "0.1em",
+  },
+
+  progressLabel: {
+    marginTop: "5px",
+    fontSize: "12px",
+    fontWeight: 600,
+  },
+
+  card: {
+    border:
+      "1px solid rgba(255,255,255,0.09)",
+    background:
+      "linear-gradient(145deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025))",
+    borderRadius: "28px",
+    boxShadow:
+      "0 30px 80px rgba(0,0,0,0.28)",
+    backdropFilter: "blur(20px)",
+  },
+
+  formCard: {
+    padding: "32px",
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns:
+      "minmax(0, 1fr) 370px",
+    gap: "28px",
+    alignItems: "start",
+  },
+
+  stepLabel: {
+    fontSize: "11px",
+    fontWeight: 800,
+    letterSpacing: "0.18em",
+    color: "#5b9aff",
+    textTransform: "uppercase" as const,
+  },
+
+  sectionTitle: {
+    margin: "8px 0 0",
+    fontSize: "27px",
+    fontWeight: 800,
+    letterSpacing: "-0.02em",
+  },
+
+  sectionText: {
+    marginTop: "8px",
+    color: "#718399",
+    fontSize: "13px",
+    lineHeight: 1.7,
+  },
+
+  field: {
+    marginTop: "20px",
+  },
+
+  label: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "9px",
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "#d8e1ed",
+  },
+
+  optional: {
+    fontSize: "11px",
+    fontWeight: 400,
+    color: "#53657a",
+  },
+
+  input: {
+    width: "100%",
+    boxSizing: "border-box" as const,
+    padding: "14px 15px",
+    borderRadius: "13px",
+    border:
+      "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.20)",
+    color: "#ffffff",
+    outline: "none",
+    fontSize: "13px",
+    transition: "all 0.2s ease",
+  },
+
+  button: {
+    width: "100%",
+    border: "none",
+    borderRadius: "14px",
+    padding: "15px 18px",
+    marginTop: "25px",
+    background:
+      "linear-gradient(135deg, #1e63f1, #3f82ff)",
+    color: "#ffffff",
+    fontSize: "14px",
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow:
+      "0 15px 35px rgba(30,99,241,0.28)",
+  },
+
+  secondaryButton: {
+    width: "100%",
+    border:
+      "1px solid rgba(255,255,255,0.10)",
+    borderRadius: "14px",
+    padding: "14px 18px",
+    background:
+      "rgba(255,255,255,0.035)",
+    color: "#b8c5d5",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  infoCard: {
+    padding: "26px",
+    borderRadius: "25px",
+    border:
+      "1px solid rgba(91,154,255,0.12)",
+    background:
+      "linear-gradient(145deg, rgba(30,99,241,0.10), rgba(255,255,255,0.025))",
+  },
+
+  iconBox: {
+    width: "46px",
+    height: "46px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "14px",
+    background: "rgba(30,99,241,0.12)",
+    fontSize: "20px",
+    marginBottom: "18px",
+  },
+
+  infoTitle: {
+    fontSize: "17px",
+    fontWeight: 800,
+  },
+
+  infoText: {
+    marginTop: "8px",
+    color: "#72849a",
+    fontSize: "13px",
+    lineHeight: 1.7,
+  },
+
+  infoRow: {
+    display: "flex",
+    gap: "12px",
+    marginTop: "18px",
+  },
+
+  infoNumber: {
+    flexShrink: 0,
+    width: "28px",
+    height: "28px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "9px",
+    border:
+      "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.035)",
+    color: "#708196",
+    fontSize: "10px",
+    fontWeight: 800,
+  },
+
+  infoRowTitle: {
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "#d8e1ed",
+  },
+
+  infoRowText: {
+    marginTop: "3px",
+    fontSize: "11px",
+    lineHeight: 1.5,
+    color: "#596c82",
+  },
+
+  previewCard: {
+    padding: "25px",
+  },
+
+  previewHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "20px",
+    marginBottom: "25px",
+  },
+
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "7px",
+    padding: "7px 11px",
+    borderRadius: "999px",
+    background: "rgba(91,154,255,0.08)",
+    border:
+      "1px solid rgba(91,154,255,0.18)",
+    color: "#82afff",
+    fontSize: "10px",
+    fontWeight: 800,
+  },
+
+  ticketOuter: {
+    position: "relative" as const,
+    maxWidth: "600px",
+    margin: "0 auto",
+  },
+
+  ticketGlow: {
+    position: "absolute" as const,
+    inset: "-20px",
+    background:
+      "rgba(30,99,241,0.13)",
+    filter: "blur(45px)",
+    borderRadius: "40px",
+  },
+
+  ticketImage: {
+    position: "relative" as const,
+    display: "block",
+    width: "100%",
+    height: "auto",
+    borderRadius: "17px",
+    border:
+      "1px solid rgba(255,255,255,0.12)",
+    boxShadow:
+      "0 35px 80px rgba(0,0,0,0.45)",
+  },
+
+  detailsCard: {
+    padding: "24px",
+  },
+
+  detailLabel: {
+    color: "#5d7086",
+    fontSize: "11px",
+    fontWeight: 800,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase" as const,
+    marginBottom: "7px",
+  },
+
+  detailValue: {
+    color: "#dbe5f1",
+    fontSize: "13px",
+    lineHeight: 1.5,
+  },
+
+  mono: {
+    fontFamily:
+      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    wordBreak: "break-all" as const,
+  },
+
+  cid: {
+    padding: "12px",
+    borderRadius: "12px",
+    background: "rgba(0,0,0,0.22)",
+    border:
+      "1px solid rgba(255,255,255,0.07)",
+    color: "#9aaabd",
+    fontSize: "11px",
+    lineHeight: 1.6,
+    wordBreak: "break-all" as const,
+  },
+
+  success: {
+    padding: "30px",
+    borderRadius: "28px",
+    border:
+      "1px solid rgba(52,211,153,0.18)",
+    background:
+      "linear-gradient(145deg, rgba(52,211,153,0.06), rgba(255,255,255,0.025))",
+  },
+
+  successIcon: {
+    width: "72px",
+    height: "72px",
+    margin: "0 auto",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "50%",
+    background: "rgba(52,211,153,0.10)",
+    border:
+      "1px solid rgba(52,211,153,0.20)",
+    color: "#5ee0ae",
+    fontSize: "30px",
+  },
+
+  error: {
+    marginTop: "20px",
+    padding: "15px",
+    borderRadius: "14px",
+    border:
+      "1px solid rgba(248,113,113,0.15)",
+    background: "rgba(248,113,113,0.06)",
+    color: "#fca5a5",
+    fontSize: "12px",
+    lineHeight: 1.6,
+  },
+
+  status: {
+    marginTop: "20px",
+    padding: "14px 16px",
+    borderRadius: "14px",
+    border:
+      "1px solid rgba(91,154,255,0.15)",
+    background: "rgba(30,99,241,0.06)",
+    color: "#9dbfff",
+    fontSize: "12px",
+  },
+
+  footer: {
+    marginTop: "45px",
+    textAlign: "center" as const,
+    color: "#3f5064",
+    fontSize: "11px",
+  },
 };
 
 export default function TicketTestPage() {
@@ -37,6 +515,15 @@ export default function TicketTestPage() {
   const [imageUrl, setImageUrl] =
     useState("");
 
+  const [stage, setStage] =
+    useState<Stage>("form");
+
+  const [previewUrl, setPreviewUrl] =
+    useState("");
+
+  const [previewBlob, setPreviewBlob] =
+    useState<Blob | null>(null);
+
   const [ticket, setTicket] =
     useState<TicketResult | null>(null);
 
@@ -52,13 +539,15 @@ export default function TicketTestPage() {
   const [error, setError] =
     useState("");
 
-  /*
-   * STEP 1:
-   * Generate and upload the ticket only.
-   *
-   * This does NOT mint the NFT.
-   */
-  async function handleGenerateTicket(
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  async function handleGenerate(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
@@ -67,11 +556,14 @@ export default function TicketTestPage() {
     setError("");
     setTicket(null);
     setMint(null);
+    setStep("Generating ticket...");
 
     try {
-      // ==========================================
-      // 1. VALIDATE WALLET
-      // ==========================================
+      if (!name.trim()) {
+        throw new Error(
+          "Please enter your name."
+        );
+      }
 
       if (!wallet.startsWith("0x")) {
         throw new Error(
@@ -85,86 +577,78 @@ export default function TicketTestPage() {
         );
       }
 
-      // ==========================================
-      // 2. GENERATE + UPLOAD TICKET
-      // ==========================================
-
-      setStep(
-        "Generating ticket and uploading to Pinata..."
-      );
-
-      const ticketParams =
+      const params =
         new URLSearchParams();
 
-      ticketParams.set(
+      params.set(
         "name",
         name.trim()
       );
 
-      ticketParams.set(
+      params.set(
         "tokenId",
         tokenId.trim()
       );
 
       if (imageUrl.trim()) {
-        ticketParams.set(
+        params.set(
           "imageUrl",
           imageUrl.trim()
         );
       }
 
-      const ticketResponse =
+      const response =
         await fetch(
-          `/api/ticket-test?${ticketParams.toString()}`,
+          `/api/ticket-test?${params.toString()}`,
           {
             method: "GET",
             cache: "no-store",
           }
         );
 
-      const ticketData =
-        await ticketResponse.json();
+      if (!response.ok) {
+        let message =
+          "Unable to generate ticket.";
 
-      if (!ticketResponse.ok) {
+        try {
+          const data =
+            await response.json();
+
+          message =
+            data.error || message;
+        } catch {
+          // Ignore non-JSON response.
+        }
+
+        throw new Error(message);
+      }
+
+      const blob =
+        await response.blob();
+
+      if (!blob.size) {
         throw new Error(
-          ticketData.error ||
-            "Ticket upload failed."
+          "Generated ticket is empty."
         );
       }
 
-      if (!ticketData.cid) {
-        throw new Error(
-          "Pinata did not return a CID."
+      if (previewUrl) {
+        URL.revokeObjectURL(
+          previewUrl
         );
       }
 
-      if (!ticketData.url) {
-        throw new Error(
-          "Pinata did not return an image URL."
-        );
-      }
+      const url =
+        URL.createObjectURL(blob);
 
-      const uploadedTicket = {
-        cid: ticketData.cid,
-        url: ticketData.url,
-      };
-
-      setTicket(uploadedTicket);
-
-      /*
-       * IMPORTANT:
-       * Stop here.
-       *
-       * The NFT has NOT been minted yet.
-       */
+      setPreviewBlob(blob);
+      setPreviewUrl(url);
+      setStage("preview");
       setStep(
-        "Ticket generated. Please review it below before minting."
+        "Ticket generated successfully."
       );
     } catch (error) {
-      console.error(
-        "TEST TICKET ERROR:",
-        error
-      );
+      console.error(error);
 
       setError(
         error instanceof Error
@@ -176,705 +660,1175 @@ export default function TicketTestPage() {
     }
   }
 
-  /*
-   * STEP 2:
-   * Mint the already-generated ticket.
-   */
-  async function handleMint() {
-    if (!ticket) {
+  async function handleUpload() {
+    if (!previewBlob) {
       setError(
-        "Please generate the ticket first."
+        "No ticket preview is available."
       );
       return;
     }
 
     setLoading(true);
     setError("");
-    setMint(null);
+    setStep(
+      "Uploading approved ticket to IPFS..."
+    );
 
     try {
-      setStep(
-        "Ticket approved. Minting NFT on Avalanche Fuji..."
+      const formData =
+        new FormData();
+
+      formData.append(
+        "action",
+        "upload"
       );
 
-      const mintResponse =
-        await fetch("/api/mint5", {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            wallet,
-            name,
-            email,
-            image: ticket.url,
-            linkedinId,
-          }),
-        });
+      formData.append(
+        "name",
+        name.trim()
+      );
 
-      const mintData =
-        await mintResponse.json();
+      formData.append(
+        "tokenId",
+        tokenId.trim()
+      );
 
-      if (!mintResponse.ok) {
+      formData.append(
+        "file",
+        previewBlob,
+        `ticket-${tokenId.trim()}.png`
+      );
+
+      const response =
+        await fetch(
+          "/api/ticket-test",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
         throw new Error(
-          mintData.error ||
-            "Mint failed."
+          data.error ||
+            "IPFS upload failed."
         );
       }
 
-      setMint(mintData);
+      if (!data.cid || !data.url) {
+        throw new Error(
+          "IPFS did not return a valid ticket URL."
+        );
+      }
 
+      setTicket({
+        cid: data.cid,
+        url: data.url,
+      });
+
+      setStage("ipfs");
       setStep(
-        "NFT successfully minted!"
+        "Ticket uploaded to IPFS successfully."
       );
     } catch (error) {
-      console.error(
-        "TEST MINT ERROR:",
-        error
-      );
+      console.error(error);
 
       setError(
         error instanceof Error
           ? error.message
-          : "Something went wrong."
+          : "IPFS upload failed."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  /*
-   * Allow the user to go back and regenerate
-   * the ticket before minting.
-   */
-  function handleRegenerate() {
+  async function handleMint() {
+    if (!ticket?.url) {
+      setError(
+        "No IPFS ticket is available."
+      );
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setStep(
+      "Minting NFT on Avalanche Fuji..."
+    );
+
+    try {
+      const response =
+        await fetch(
+          "/api/mint5",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              wallet:
+                wallet.trim(),
+              name:
+                name.trim(),
+              email:
+                email.trim(),
+              image:
+                ticket.url,
+              linkedinId:
+                linkedinId.trim(),
+            }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Mint failed."
+        );
+      }
+
+      setMint(data);
+      setStage("minted");
+      setStep(
+        "NFT successfully minted!"
+      );
+    } catch (error) {
+      console.error(error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Mint failed."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function reset() {
+    if (previewUrl) {
+      URL.revokeObjectURL(
+        previewUrl
+      );
+    }
+
+    setPreviewUrl("");
+    setPreviewBlob(null);
     setTicket(null);
     setMint(null);
     setError("");
     setStep("");
+    setStage("form");
   }
 
+  const stepNumber =
+    stage === "form"
+      ? 1
+      : stage === "preview"
+      ? 2
+      : stage === "ipfs"
+      ? 3
+      : 4;
+
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f4f6f8",
-        padding: "40px 20px",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "700px",
-          margin: "0 auto",
-          background: "#ffffff",
-          padding: "32px",
-          borderRadius: "16px",
-          boxShadow:
-            "0 10px 40px rgba(0,0,0,0.08)",
-        }}
-      >
-        <h1
-          style={{
-            marginTop: 0,
-          }}
-        >
-          Women in FinTech
-          <br />
-          Mint Test
-        </h1>
+    <main style={styles.page}>
+      <div style={styles.container}>
 
-        <p
-          style={{
-            color: "#666",
-          }}
-        >
-          Generate the ticket first, review the
-          final image, then choose whether to mint
-          the NFT on Avalanche Fuji.
-        </p>
+        {/* HEADER */}
 
-        <form
-          onSubmit={
-            handleGenerateTicket
-          }
-        >
-          {/* NAME */}
+        <header style={styles.header}>
+          <div style={styles.brandRow}>
+            <div style={styles.brand}>
+              <div style={styles.logo}>
+                IF
+              </div>
 
-          <div
-            style={{
-              marginTop: "25px",
-            }}
-          >
-            <label
-              htmlFor="name"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "8px",
-              }}
-            >
-              Name
-            </label>
+              <div>
+                <div style={styles.brandName}>
+                  innovate finance
+                </div>
 
-            <input
-              id="name"
-              value={name}
-              onChange={(event) =>
-                setName(
-                  event.target.value
-                )
-              }
-              required
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                boxSizing: "border-box",
-              }}
-            />
+                <div style={styles.brandSub}>
+                  Web3 Ticketing
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.network}>
+              Avalanche Fuji Testnet
+            </div>
           </div>
 
-          {/* WALLET */}
-
-          <div
-            style={{
-              marginTop: "20px",
-            }}
-          >
-            <label
-              htmlFor="wallet"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "8px",
-              }}
-            >
-              Wallet Address
-            </label>
-
-            <input
-              id="wallet"
-              value={wallet}
-              onChange={(event) =>
-                setWallet(
-                  event.target.value
-                )
-              }
-              placeholder="0x..."
-              required
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                boxSizing: "border-box",
-                fontFamily: "monospace",
-              }}
-            />
+          <div style={styles.eyebrow}>
+            <span style={styles.dot} />
+            NFT MINT TEST
           </div>
 
-          {/* EMAIL */}
+          <h1 style={styles.title}>
+            Women in FinTech
+            <br />
 
-          <div
-            style={{
-              marginTop: "20px",
-            }}
-          >
-            <label
-              htmlFor="email"
+            <span style={styles.titleGradient}>
+              Powerlist 2026
+            </span>
+          </h1>
+
+          <p style={styles.subtitle}>
+            Create your digital ticket, inspect it before
+            anything is uploaded, approve the IPFS version,
+            then mint your NFT on Avalanche Fuji.
+          </p>
+        </header>
+
+        {/* PROGRESS */}
+
+        <div style={styles.progress}>
+          {[
+            ["01", "Details"],
+            ["02", "Preview"],
+            ["03", "IPFS"],
+            ["04", "Mint"],
+          ].map(
+            ([number, label], index) => {
+              const active =
+                index + 1 <= stepNumber;
+
+              return (
+                <div
+                  key={number}
+                  style={{
+                    ...styles.progressItem,
+                    background: active
+                      ? "rgba(30,99,241,0.10)"
+                      : "transparent",
+                    color: active
+                      ? "#82afff"
+                      : "#45566b",
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.progressNumber,
+                      color: active
+                        ? "#5b9aff"
+                        : "#45566b",
+                    }}
+                  >
+                    {number}
+                  </div>
+
+                  <div style={styles.progressLabel}>
+                    {label}
+                  </div>
+                </div>
+              );
+            }
+          )}
+        </div>
+
+        {/* FORM */}
+
+        {stage === "form" && (
+          <div style={styles.grid}>
+            <section
               style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "8px",
+                ...styles.card,
+                ...styles.formCard,
               }}
             >
-              Email
-            </label>
+              <div>
+                <div style={styles.stepLabel}>
+                  Step 01
+                </div>
 
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) =>
-                setEmail(
-                  event.target.value
-                )
-              }
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+                <h2 style={styles.sectionTitle}>
+                  Ticket details
+                </h2>
 
-          {/* LINKEDIN ID */}
+                <p style={styles.sectionText}>
+                  Enter the attendee information used to
+                  generate your ticket.
+                </p>
+              </div>
 
-          <div
-            style={{
-              marginTop: "20px",
-            }}
-          >
-            <label
-              htmlFor="linkedinId"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "8px",
-              }}
-            >
-              LinkedIn ID
-            </label>
+              <form
+                onSubmit={handleGenerate}
+              >
+                <Field
+                  label="Name"
+                  value={name}
+                  setValue={setName}
+                  placeholder="Jane Smith"
+                  disabled={loading}
+                  required
+                />
 
-            <input
-              id="linkedinId"
-              value={linkedinId}
-              onChange={(event) =>
-                setLinkedinId(
-                  event.target.value
-                )
-              }
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+                <Field
+                  label="Wallet address"
+                  value={wallet}
+                  setValue={setWallet}
+                  placeholder="0x..."
+                  disabled={loading}
+                  required
+                  mono
+                />
 
-          {/* TOKEN ID */}
+                <Field
+                  label="Email"
+                  type="email"
+                  value={email}
+                  setValue={setEmail}
+                  placeholder="jane@example.com"
+                  disabled={loading}
+                />
 
-          <div
-            style={{
-              marginTop: "20px",
-            }}
-          >
-            <label
-              htmlFor="tokenId"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "8px",
-              }}
-            >
-              Ticket Token ID
-            </label>
+                <Field
+                  label="LinkedIn ID"
+                  value={linkedinId}
+                  setValue={setLinkedinId}
+                  placeholder="jane-smith"
+                  disabled={loading}
+                />
 
-            <input
-              id="tokenId"
-              value={tokenId}
-              onChange={(event) =>
-                setTokenId(
-                  event.target.value
-                )
-              }
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "1fr 1fr",
+                    gap: "18px",
+                  }}
+                >
+                  <Field
+                    label="Token ID"
+                    value={tokenId}
+                    setValue={setTokenId}
+                    placeholder="001"
+                    disabled={loading}
+                    mono
+                  />
 
-          {/* PROFILE IMAGE */}
+                  <Field
+                    label="Profile image URL"
+                    value={imageUrl}
+                    setValue={setImageUrl}
+                    placeholder="https://..."
+                    disabled={loading}
+                    type="url"
+                    optional
+                  />
+                </div>
 
-          <div
-            style={{
-              marginTop: "20px",
-            }}
-          >
-            <label
-              htmlFor="imageUrl"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "8px",
-              }}
-            >
-              Profile Image URL
-              <span
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    !name.trim() ||
+                    !wallet.trim()
+                  }
+                  style={{
+                    ...styles.button,
+                    opacity:
+                      loading ||
+                      !name.trim() ||
+                      !wallet.trim()
+                        ? 0.5
+                        : 1,
+                    cursor:
+                      loading ||
+                      !name.trim() ||
+                      !wallet.trim()
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {loading
+                    ? step || "Generating..."
+                    : "Generate Ticket →"}
+                </button>
+              </form>
+
+              {error && (
+                <ErrorBox message={error} />
+              )}
+            </section>
+
+            <aside>
+              <div style={styles.infoCard}>
+                <div style={styles.iconBox}>
+                  🎟️
+                </div>
+
+                <div style={styles.infoTitle}>
+                  Safe preview flow
+                </div>
+
+                <p style={styles.infoText}>
+                  Your ticket is generated first and shown to
+                  you before it is uploaded anywhere.
+                </p>
+
+                <InfoRow
+                  number="01"
+                  title="Generate"
+                  text="Create the ticket image."
+                />
+
+                <InfoRow
+                  number="02"
+                  title="Review"
+                  text="Inspect the exact ticket."
+                />
+
+                <InfoRow
+                  number="03"
+                  title="Approve"
+                  text="Upload the approved image to IPFS."
+                />
+
+                <InfoRow
+                  number="04"
+                  title="Mint"
+                  text="Mint using the IPFS image."
+                />
+              </div>
+
+              <div
                 style={{
-                  color: "#888",
-                  fontWeight: 400,
-                  marginLeft: "6px",
+                  ...styles.card,
+                  marginTop: "18px",
+                  padding: "22px",
                 }}
               >
-                optional
-              </span>
-            </label>
+                <div style={styles.detailLabel}>
+                  Network
+                </div>
 
-            <input
-              id="imageUrl"
-              type="url"
-              value={imageUrl}
-              onChange={(event) =>
-                setImageUrl(
-                  event.target.value
-                )
-              }
-              placeholder="https://..."
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+                <div
+                  style={{
+                    marginTop: "10px",
+                    fontWeight: 700,
+                  }}
+                >
+                  🔴 Avalanche Fuji
+                </div>
 
-          {/* GENERATE BUTTON */}
-
-          {!ticket && (
-            <button
-              type="submit"
-              disabled={
-                loading ||
-                !name.trim() ||
-                !wallet.trim()
-              }
-              style={{
-                width: "100%",
-                marginTop: "25px",
-                padding: "15px",
-                border: "none",
-                borderRadius: "8px",
-                background:
-                  loading
-                    ? "#999"
-                    : "#111",
-                color: "white",
-                fontSize: "16px",
-                fontWeight: 600,
-                cursor: loading
-                  ? "not-allowed"
-                  : "pointer",
-              }}
-            >
-              {loading
-                ? step ||
-                  "Generating..."
-                : "Generate Ticket"}
-            </button>
-          )}
-        </form>
-
-        {/* STATUS */}
-
-        {loading && (
-          <div
-            style={{
-              marginTop: "20px",
-              padding: "15px",
-              background: "#eef5ff",
-              border:
-                "1px solid #c8ddff",
-              borderRadius: "8px",
-              color: "#1755a5",
-            }}
-          >
-            {step}
+                <div
+                  style={{
+                    marginTop: "5px",
+                    fontSize: "11px",
+                    color: "#52657b",
+                  }}
+                >
+                  Testnet environment
+                </div>
+              </div>
+            </aside>
           </div>
         )}
 
-        {/* ERROR */}
+        {/* PREVIEW */}
 
-        {error && (
-          <div
-            style={{
-              marginTop: "25px",
-              padding: "15px",
-              background: "#fff0f0",
-              border:
-                "1px solid #ffcccc",
-              borderRadius: "8px",
-              color: "#b00020",
-            }}
-          >
-            <strong>
-              Error
-            </strong>
-
-            <p
+        {stage === "preview" && (
+          <div style={styles.grid}>
+            <section
               style={{
-                marginBottom: 0,
-                wordBreak: "break-word",
+                ...styles.card,
+                ...styles.previewCard,
               }}
             >
-              {error}
-            </p>
-          </div>
-        )}
+              <PreviewHeader
+                step="Step 02"
+                title="Review your ticket"
+                description="Nothing has been uploaded to IPFS yet."
+                badge="LOCAL PREVIEW"
+              />
 
-        {/* TICKET PREVIEW */}
+              <TicketPreview
+                src={previewUrl}
+                alt={`Ticket for ${name}`}
+              />
+            </section>
 
-        {ticket && !mint && (
-          <div
-            style={{
-              marginTop: "35px",
-              paddingTop: "30px",
-              borderTop:
-                "1px solid #eee",
-            }}
-          >
-            <h2
-              style={{
-                marginTop: 0,
-              }}
-            >
-              Ticket Preview
-            </h2>
+            <aside>
+              <div style={styles.infoCard}>
+                <div style={styles.iconBox}>
+                  👀
+                </div>
 
-            <p
-              style={{
-                color: "#555",
-              }}
-            >
-              Review this ticket carefully.
-              <strong>
-                {" "}
-                Nothing has been minted yet.
-              </strong>
-            </p>
+                <div style={styles.infoTitle}>
+                  Check everything
+                </div>
 
-            <div
-              style={{
-                padding: "15px",
-                background: "#fff8e6",
-                border:
-                  "1px solid #f0d58a",
-                borderRadius: "8px",
-                color: "#765800",
-                marginBottom: "20px",
-              }}
-            >
-              <strong>
-                Preview only
-              </strong>
-              <br />
-              The NFT will not be minted until
-              you click "Mint NFT".
-            </div>
+                <p style={styles.infoText}>
+                  Make sure the name, profile image and ticket
+                  design look correct before continuing.
+                </p>
+              </div>
 
-            <p>
-              <strong>
-                CID:
-              </strong>
-            </p>
+              <div
+                style={{
+                  ...styles.card,
+                  ...styles.detailsCard,
+                  marginTop: "18px",
+                }}
+              >
+                <TicketDetails
+                  name={name}
+                  tokenId={tokenId}
+                  wallet={wallet}
+                />
+              </div>
 
-            <div
-              style={{
-                padding: "12px",
-                background: "#f5f5f5",
-                borderRadius: "8px",
-                fontFamily:
-                  "monospace",
-                fontSize: "13px",
-                wordBreak: "break-all",
-              }}
-            >
-              {ticket.cid}
-            </div>
-
-            <p
-              style={{
-                marginTop: "20px",
-              }}
-            >
-              <strong>
-                Public IPFS URL:
-              </strong>
-            </p>
-
-            <a
-              href={ticket.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "#0066cc",
-                wordBreak: "break-all",
-              }}
-            >
-              {ticket.url}
-            </a>
-
-            {/* ACTUAL TICKET IMAGE */}
-
-            <img
-              src={ticket.url}
-              alt={`Ticket for ${name}`}
-              style={{
-                display: "block",
-                width: "100%",
-                maxWidth: "600px",
-                height: "auto",
-                margin:
-                  "25px auto 0",
-                borderRadius: "10px",
-                border:
-                  "1px solid #ddd",
-              }}
-            />
-
-            {/* APPROVAL ACTIONS */}
-
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                marginTop: "25px",
-              }}
-            >
               <button
                 type="button"
-                onClick={handleRegenerate}
+                onClick={handleUpload}
                 disabled={loading}
                 style={{
-                  flex: 1,
-                  padding: "15px",
-                  border:
-                    "1px solid #ccc",
-                  borderRadius: "8px",
-                  background: "white",
-                  color: "#333",
-                  fontSize: "16px",
-                  fontWeight: 600,
-                  cursor: loading
-                    ? "not-allowed"
-                    : "pointer",
+                  ...styles.button,
+                  marginTop: "18px",
+                  opacity: loading ? 0.5 : 1,
                 }}
               >
-                Regenerate
+                {loading
+                  ? "Uploading..."
+                  : "Approve & Upload to IPFS →"}
               </button>
+
+              <button
+                type="button"
+                onClick={reset}
+                disabled={loading}
+                style={{
+                  ...styles.secondaryButton,
+                  marginTop: "10px",
+                }}
+              >
+                ← Edit Details
+              </button>
+
+              {error && (
+                <ErrorBox message={error} />
+              )}
+            </aside>
+          </div>
+        )}
+
+        {/* IPFS */}
+
+        {stage === "ipfs" && ticket && (
+          <div style={styles.grid}>
+            <section
+              style={{
+                ...styles.card,
+                ...styles.previewCard,
+              }}
+            >
+              <PreviewHeader
+                step="Step 03"
+                title="IPFS ticket"
+                description="This is the exact image that will be used for the NFT."
+                badge="ON IPFS"
+                green
+              />
+
+              <TicketPreview
+                src={ticket.url}
+                alt={`IPFS ticket for ${name}`}
+              />
+            </section>
+
+            <aside>
+              <div
+                style={{
+                  ...styles.infoCard,
+                  borderColor:
+                    "rgba(52,211,153,0.16)",
+                  background:
+                    "rgba(52,211,153,0.05)",
+                }}
+              >
+                <div style={styles.iconBox}>
+                  ✓
+                </div>
+
+                <div style={styles.infoTitle}>
+                  Upload successful
+                </div>
+
+                <p style={styles.infoText}>
+                  Your approved ticket is now publicly available
+                  through IPFS.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  ...styles.card,
+                  ...styles.detailsCard,
+                  marginTop: "18px",
+                }}
+              >
+                <div style={styles.detailLabel}>
+                  IPFS CID
+                </div>
+
+                <div
+                  style={{
+                    ...styles.cid,
+                    marginTop: "8px",
+                  }}
+                >
+                  {ticket.cid}
+                </div>
+
+                <a
+                  href={ticket.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "block",
+                    marginTop: "12px",
+                    color: "#6fa4ff",
+                    fontSize: "12px",
+                    textDecoration: "none",
+                  }}
+                >
+                  Open IPFS image ↗
+                </a>
+              </div>
+
+              <div
+                style={{
+                  ...styles.card,
+                  ...styles.detailsCard,
+                  marginTop: "18px",
+                }}
+              >
+                <TicketDetails
+                  name={name}
+                  tokenId={tokenId}
+                  wallet={wallet}
+                />
+              </div>
 
               <button
                 type="button"
                 onClick={handleMint}
                 disabled={loading}
                 style={{
-                  flex: 1,
-                  padding: "15px",
-                  border: "none",
-                  borderRadius: "8px",
-                  background:
-                    loading
-                      ? "#999"
-                      : "#16803c",
-                  color: "white",
-                  fontSize: "16px",
-                  fontWeight: 600,
-                  cursor: loading
-                    ? "not-allowed"
-                    : "pointer",
+                  ...styles.button,
+                  marginTop: "18px",
+                  opacity: loading ? 0.5 : 1,
                 }}
               >
                 {loading
                   ? "Minting..."
-                  : "Mint NFT"}
+                  : "Mint NFT →"}
               </button>
-            </div>
+
+              <button
+                type="button"
+                onClick={reset}
+                disabled={loading}
+                style={{
+                  ...styles.secondaryButton,
+                  marginTop: "10px",
+                }}
+              >
+                Don't Mint
+              </button>
+
+              {error && (
+                <ErrorBox message={error} />
+              )}
+            </aside>
           </div>
         )}
 
-        {/* MINT RESULT */}
+        {/* MINTED */}
 
-        {mint && (
-          <div
-            style={{
-              marginTop: "35px",
-              padding: "25px",
-              background: "#effcf4",
-              border:
-                "1px solid #b7e8c9",
-              borderRadius: "12px",
-            }}
-          >
-            <h2
-              style={{
-                marginTop: 0,
-                color: "#16803c",
-              }}
-            >
-              NFT Minted 🎉
-            </h2>
-
-            <p>
-              <strong>
-                Transaction:
-              </strong>
-            </p>
+        {stage === "minted" && mint && (
+          <section style={styles.success}>
+            <div style={styles.successIcon}>
+              ✓
+            </div>
 
             <div
               style={{
-                fontFamily:
-                  "monospace",
-                wordBreak: "break-all",
+                textAlign: "center",
+                marginTop: "22px",
               }}
             >
-              {mint.txHash}
+              <div
+                style={{
+                  ...styles.stepLabel,
+                  color: "#5ee0ae",
+                }}
+              >
+                Step 04 · Complete
+              </div>
+
+              <h2
+                style={{
+                  margin: "8px 0 0",
+                  fontSize: "32px",
+                  fontWeight: 800,
+                }}
+              >
+                NFT Minted Successfully
+              </h2>
+
+              <p
+                style={{
+                  maxWidth: "600px",
+                  margin: "10px auto 0",
+                  color: "#718399",
+                  fontSize: "13px",
+                  lineHeight: 1.7,
+                }}
+              >
+                Your Women in FinTech Powerlist ticket has been
+                minted on Avalanche Fuji.
+              </p>
             </div>
-
-            <p>
-              <strong>
-                Block:
-              </strong>{" "}
-              {mint.blockNumber}
-            </p>
-
-            <p>
-              <strong>
-                Token image:
-              </strong>
-            </p>
-
-            <a
-              href={mint.image}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "#0066cc",
-                wordBreak: "break-all",
-              }}
-            >
-              {mint.image}
-            </a>
-
-            <p
-              style={{
-                marginTop: "20px",
-                color: "#16803c",
-                fontWeight: 600,
-              }}
-            >
-              The NFT is now minted to:
-            </p>
 
             <div
               style={{
-                fontFamily:
-                  "monospace",
-                wordBreak: "break-all",
+                display: "grid",
+                gridTemplateColumns:
+                  "300px minmax(0, 1fr)",
+                gap: "35px",
+                marginTop: "35px",
+                alignItems: "start",
               }}
             >
-              {wallet}
+              <TicketPreview
+                src={
+                  ticket?.url ||
+                  mint.image
+                }
+                alt={`Minted ticket for ${name}`}
+              />
+
+              <div>
+                <ResultItem
+                  label="Wallet"
+                  value={wallet}
+                  mono
+                />
+
+                <ResultItem
+                  label="Transaction hash"
+                  value={mint.txHash}
+                  mono
+                />
+
+                <ResultItem
+                  label="Block number"
+                  value={mint.blockNumber}
+                  mono
+                />
+
+                {mint.tokenId && (
+                  <ResultItem
+                    label="Token ID"
+                    value={mint.tokenId}
+                    mono
+                  />
+                )}
+
+                <ResultItem
+                  label="Token image"
+                  value={mint.image}
+                  mono
+                  link={mint.image}
+                />
+
+                <button
+                  type="button"
+                  onClick={reset}
+                  style={{
+                    ...styles.button,
+                    background:
+                      "#ffffff",
+                    color: "#07111f",
+                    boxShadow: "none",
+                    marginTop: "25px",
+                  }}
+                >
+                  Create Another Test Ticket
+                </button>
+              </div>
             </div>
+          </section>
+        )}
+
+        {loading && stage !== "form" && (
+          <div style={styles.status}>
+            {step}
           </div>
         )}
+
+        <footer style={styles.footer}>
+          Women in FinTech · Powerlist 2026 · Avalanche Fuji
+          Testnet
+        </footer>
       </div>
     </main>
+  );
+}
+
+/* =========================================================
+   SMALL COMPONENTS
+========================================================= */
+
+function Field({
+  label,
+  value,
+  setValue,
+  placeholder,
+  disabled,
+  required,
+  type = "text",
+  mono = false,
+  optional = false,
+}: {
+  label: string;
+  value: string;
+  setValue: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
+  type?: string;
+  mono?: boolean;
+  optional?: boolean;
+}) {
+  return (
+    <div style={styles.field}>
+      <label style={styles.label}>
+        <span>
+          {label}
+
+          {required && (
+            <span
+              style={{
+                color: "#5b9aff",
+                marginLeft: "4px",
+              }}
+            >
+              *
+            </span>
+          )}
+        </span>
+
+        {optional && (
+          <span style={styles.optional}>
+            optional
+          </span>
+        )}
+      </label>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(event) =>
+          setValue(event.target.value)
+        }
+        placeholder={placeholder}
+        disabled={disabled}
+        required={required}
+        style={{
+          ...styles.input,
+          fontFamily: mono
+            ? "ui-monospace, SFMono-Regular, Menlo, monospace"
+            : "inherit",
+        }}
+      />
+    </div>
+  );
+}
+
+function PreviewHeader({
+  step,
+  title,
+  description,
+  badge,
+  green = false,
+}: {
+  step: string;
+  title: string;
+  description: string;
+  badge: string;
+  green?: boolean;
+}) {
+  return (
+    <div style={styles.previewHeader}>
+      <div>
+        <div
+          style={{
+            ...styles.stepLabel,
+            color: green
+              ? "#5ee0ae"
+              : "#5b9aff",
+          }}
+        >
+          {step}
+        </div>
+
+        <h2 style={styles.sectionTitle}>
+          {title}
+        </h2>
+
+        <p style={styles.sectionText}>
+          {description}
+        </p>
+      </div>
+
+      <div
+        style={{
+          ...styles.badge,
+          color: green
+            ? "#5ee0ae"
+            : "#82afff",
+          borderColor: green
+            ? "rgba(52,211,153,0.18)"
+            : "rgba(91,154,255,0.18)",
+          background: green
+            ? "rgba(52,211,153,0.06)"
+            : "rgba(91,154,255,0.08)",
+        }}
+      >
+        <span
+          style={{
+            width: "6px",
+            height: "6px",
+            borderRadius: "50%",
+            background: green
+              ? "#5ee0ae"
+              : "#5b9aff",
+          }}
+        />
+
+        {badge}
+      </div>
+    </div>
+  );
+}
+
+function TicketPreview({
+  src,
+  alt,
+}: {
+  src: string;
+  alt: string;
+}) {
+  return (
+    <div style={styles.ticketOuter}>
+      <div style={styles.ticketGlow} />
+
+      <img
+        src={src}
+        alt={alt}
+        style={styles.ticketImage}
+      />
+    </div>
+  );
+}
+
+function InfoRow({
+  number,
+  title,
+  text,
+}: {
+  number: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div style={styles.infoRow}>
+      <div style={styles.infoNumber}>
+        {number}
+      </div>
+
+      <div>
+        <div style={styles.infoRowTitle}>
+          {title}
+        </div>
+
+        <div style={styles.infoRowText}>
+          {text}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TicketDetails({
+  name,
+  tokenId,
+  wallet,
+}: {
+  name: string;
+  tokenId: string;
+  wallet: string;
+}) {
+  return (
+    <div>
+      <div style={styles.detailLabel}>
+        Ticket details
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "20px",
+          padding: "12px 0",
+          borderBottom:
+            "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <span
+          style={{
+            color: "#5d7086",
+            fontSize: "12px",
+          }}
+        >
+          Name
+        </span>
+
+        <strong
+          style={{
+            color: "#dbe5f1",
+            fontSize: "12px",
+          }}
+        >
+          {name}
+        </strong>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "20px",
+          padding: "12px 0",
+          borderBottom:
+            "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <span
+          style={{
+            color: "#5d7086",
+            fontSize: "12px",
+          }}
+        >
+          Token
+        </span>
+
+        <span
+          style={{
+            ...styles.mono,
+            color: "#aab9ca",
+            fontSize: "12px",
+          }}
+        >
+          #{tokenId}
+        </span>
+      </div>
+
+      <div style={{ marginTop: "14px" }}>
+        <div style={styles.detailLabel}>
+          Wallet
+        </div>
+
+        <div
+          style={{
+            ...styles.cid,
+            marginTop: "7px",
+          }}
+        >
+          {wallet}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResultItem({
+  label,
+  value,
+  mono = false,
+  link,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  link?: string;
+}) {
+  return (
+    <div style={{ marginBottom: "18px" }}>
+      <div style={styles.detailLabel}>
+        {label}
+      </div>
+
+      {link ? (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            ...styles.cid,
+            display: "block",
+            color: "#72a5ff",
+            textDecoration: "none",
+          }}
+        >
+          {value}
+        </a>
+      ) : (
+        <div
+          style={{
+            ...styles.cid,
+            fontFamily: mono
+              ? "ui-monospace, SFMono-Regular, Menlo, monospace"
+              : "inherit",
+          }}
+        >
+          {value}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ErrorBox({
+  message,
+}: {
+  message: string;
+}) {
+  return (
+    <div style={styles.error}>
+      <strong>
+        Something went wrong
+      </strong>
+
+      <div
+        style={{
+          marginTop: "5px",
+          wordBreak: "break-word",
+        }}
+      >
+        {message}
+      </div>
+    </div>
   );
 }
