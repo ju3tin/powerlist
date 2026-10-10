@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/admin-auth";
-import AdminTicketDesigner from "@/app/components/admin/AdminTicketDesigner";
+import AdminTicketDesigner from "@/app/components/admin/AdminTicketPage";
 
 export const dynamic = "force-dynamic";
 

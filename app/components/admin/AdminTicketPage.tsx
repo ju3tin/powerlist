@@ -763,31 +763,12 @@ export default function AdminTicketPage() {
               onChange={setTokenId}
             />
 
-            <div>
-              <label className="block text-[11px] text-gray-400 mb-0.5">
-                Avatar
-              </label>
-              <select
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                className="input"
-              >
-                {imageFiles.length === 0 && (
-                  <option value={imageUrl}>
-                    {imageUrl || "No images found"}
-                  </option>
-                )}
-                {imageFiles.map((file) => (
-                  <option key={file} value={`/images/${file}`}>
-                    {file}
-                  </option>
-                ))}
-                {imageUrl &&
-                  !imageFiles.some((f) => `/images/${f}` === imageUrl) && (
-                    <option value={imageUrl}>{imageUrl}</option>
-                  )}
-              </select>
-            </div>
+            <ImagePicker
+              label="Avatar"
+              value={imageUrl}
+              onChange={setImageUrl}
+              imageFiles={imageFiles}
+            />
 
             <Field
               label="Role"
@@ -807,31 +788,12 @@ export default function AdminTicketPage() {
               onChange={setYear}
             />
 
-            <div>
-              <label className="block text-[11px] text-gray-400 mb-0.5">
-                Company logo
-              </label>
-              <select
-                value={companyLogo}
-                onChange={(e) => setCompanyLogo(e.target.value)}
-                className="input"
-              >
-                {imageFiles.length === 0 && (
-                  <option value={companyLogo}>
-                    {companyLogo || "No images found"}
-                  </option>
-                )}
-                {imageFiles.map((file) => (
-                  <option key={file} value={`/images/${file}`}>
-                    {file}
-                  </option>
-                ))}
-                {companyLogo &&
-                  !imageFiles.some((f) => `/images/${f}` === companyLogo) && (
-                    <option value={companyLogo}>{companyLogo}</option>
-                  )}
-              </select>
-            </div>
+            <ImagePicker
+              label="Company logo"
+              value={companyLogo}
+              onChange={setCompanyLogo}
+              imageFiles={imageFiles}
+            />
 
             <Field
               label="LinkedIn URL"
@@ -1352,6 +1314,8 @@ export default function AdminTicketPage() {
                               : "1px solid transparent",
                           outlineOffset: 4,
                           padding: 2,
+                          transform: `rotate(${(layer as any).rotation ?? 0}deg)`,
+                          transformOrigin: "center center",
                         }}
                       >
                         {displayText(
@@ -1416,13 +1380,15 @@ export default function AdminTicketPage() {
                             ? "2px solid #5b9aff"
                             : "1px solid transparent",
                         outlineOffset: 3,
+                        transform: `rotate(${(layer as any).rotation ?? 0}deg)`,
+                        transformOrigin: "center center",
                         border:
-                          layer.borderWidth
+                          layer.borderWidth && layer.borderWidth > 0
                             ? `${layer.borderWidth}px solid ${
                                 layer.borderColor ||
                                 "transparent"
                               }`
-                            : undefined,
+                            : "none",
                         background:
                           src
                             ? undefined
@@ -1592,6 +1558,19 @@ export default function AdminTicketPage() {
                 />
               </div>
 
+              <Field
+                label="Angle (°)"
+                type="number"
+                value={String(
+                  (selected as any).rotation ?? 0
+                )}
+                onChange={(v) =>
+                  updateLayer(selected.id, {
+                    rotation: Number(v) || 0,
+                  } as any)
+                }
+              />
+
               {/* Text */}
 
               {selected.type ===
@@ -1758,22 +1737,18 @@ export default function AdminTicketPage() {
                         : "url"
                     }
                     onChange={(e) => {
-                      const v =
-                        e.target.value;
-
-                      updateLayer(
-                        selected.id,
-                        {
-                          src:
-                            v ===
-                            "avatar"
-                              ? "avatar"
-                              : v ===
-                                "company_logo"
-                              ? "company_logo"
-                              : "",
-                        }
-                      );
+                      const v = e.target.value;
+                      updateLayer(selected.id, {
+                        src:
+                          v === "avatar"
+                            ? "avatar"
+                            : v === "company_logo"
+                            ? "company_logo"
+                            : selected.src === "avatar" ||
+                              selected.src === "company_logo"
+                            ? ""
+                            : selected.src || "",
+                      });
                     }}
                     className="input"
                   >
@@ -1794,42 +1769,19 @@ export default function AdminTicketPage() {
                     "avatar" &&
                     selected.src !==
                       "company_logo" && (
-                      <div>
-                        <label className="block text-[11px] text-gray-400 mb-0.5">
-                          Image from /images
-                        </label>
-                        <select
-                          value={selected.src}
-                          onChange={(e) =>
-                            updateLayer(selected.id, {
-                              src: e.target.value,
-                            })
-                          }
-                          className="input"
-                        >
-                          {imageFiles.length === 0 && (
-                            <option value={selected.src}>
-                              {selected.src || "No images found"}
-                            </option>
-                          )}
-                          {imageFiles.map((file) => (
-                            <option
-                              key={file}
-                              value={`/images/${file}`}
-                            >
-                              {file}
-                            </option>
-                          ))}
-                          {selected.src &&
-                            !imageFiles.some(
-                              (f) => `/images/${f}` === selected.src
-                            ) && (
-                              <option value={selected.src}>
-                                {selected.src}
-                              </option>
-                            )}
-                        </select>
-                      </div>
+                      <ImagePicker
+                        label="Custom image URL"
+                        value={
+                          selected.src === "avatar" ||
+                          selected.src === "company_logo"
+                            ? ""
+                            : selected.src || ""
+                        }
+                        onChange={(v) =>
+                          updateLayer(selected.id, { src: v })
+                        }
+                        imageFiles={imageFiles}
+                      />
                     )}
 
                   <div className="grid grid-cols-2 gap-2">
@@ -1902,6 +1854,52 @@ export default function AdminTicketPage() {
                       Rounded square
                     </option>
                   </select>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field
+                      label="Border width (0 = none)"
+                      type="number"
+                      value={String(
+                        selected.borderWidth ?? 0
+                      )}
+                      onChange={(v) =>
+                        updateLayer(selected.id, {
+                          borderWidth: Math.max(
+                            0,
+                            Number(v) || 0
+                          ),
+                        })
+                      }
+                    />
+                    <div />
+                  </div>
+
+                  {(selected.borderWidth ?? 0) > 0 && (
+                    <ColorField
+                      label="Border color"
+                      value={
+                        selected.borderColor ||
+                        "rgba(91,154,255,0.6)"
+                      }
+                      onChange={(v) =>
+                        updateLayer(selected.id, {
+                          borderColor: v,
+                        })
+                      }
+                    />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateLayer(selected.id, {
+                        borderWidth: 0,
+                      })
+                    }
+                    className="w-full text-xs py-2 rounded-lg bg-white/10 hover:bg-white/15"
+                  >
+                    Remove border
+                  </button>
                 </>
               )}
             </>
@@ -1951,6 +1949,79 @@ export default function AdminTicketPage() {
           border-color: #5b9aff;
         }
       `}</style>
+    </div>
+  );
+}
+
+function ImagePicker({
+  label,
+  value,
+  onChange,
+  imageFiles,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  imageFiles: string[];
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="block text-[11px] text-gray-400 mb-0.5">
+        {label}
+      </label>
+
+      {/* Free-text URL — always editable */}
+      <input
+        type="text"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={(e) => onChange(e.target.value.trim())}
+        placeholder="/images/filename.png or https://…"
+        className="input"
+        autoComplete="off"
+      />
+
+      {/* Thumbnail grid from public/images */}
+      {imageFiles.length > 0 ? (
+        <>
+          <p className="text-[10px] text-gray-500">
+            Click to use ({imageFiles.length} in /images)
+          </p>
+          <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto rounded-lg border border-white/10 p-1.5 bg-black/20">
+            {imageFiles.map((file) => {
+              const url = `/images/${file}`;
+              const isSelected = value === url;
+              return (
+                <button
+                  key={file}
+                  type="button"
+                  title={file}
+                  onClick={() => onChange(url)}
+                  className={`relative aspect-square rounded overflow-hidden border-2 transition ${
+                    isSelected
+                      ? "border-[#5b9aff] ring-1 ring-[#5b9aff]/50"
+                      : "border-transparent hover:border-white/30"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={file}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.opacity = "0.3";
+                    }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <p className="text-[10px] text-amber-400/80">
+          No images loaded. Put files in public/images and ensure /api/images works.
+        </p>
+      )}
     </div>
   );
 }
