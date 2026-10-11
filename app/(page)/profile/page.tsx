@@ -1,6 +1,6 @@
 
 import { redirect } from "next/navigation";
-
+import LogoutButton from "@/components/LogoutButton";
 import {
   getAuthenticatedProfile,
 } from "@/lib/linkedin-auth";
@@ -45,12 +45,10 @@ export default async function ProfilePage() {
               Home
             </a>
 
-            <a
-              href="/api/auth/logout"
-              className="rounded-full bg-[#10253f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1d3855]"
-            >
-              Sign out
-            </a>
+            
+<LogoutButton className="rounded-full bg-[#10253f] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1d3855] disabled:opacity-50">
+  Sign out
+</LogoutButton>
           </div>
         </header>
 
