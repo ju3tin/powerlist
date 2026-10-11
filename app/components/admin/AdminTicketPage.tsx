@@ -39,7 +39,7 @@ export default function AdminTicketPage() {
   // Sample profile data
   // -----------------------------
 
-  const [name, setName] = useState("Allen Rohner");
+  const [name, setName] = useState("Lavinia D. Osbourne");
 
   const [tokenId, setTokenId] = useState("387640");
 

@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      name = "Allen Rohner",
+      name = "Lavinia D. Osbourne",
       tokenId = "387640",
       imageUrl,
       role,
