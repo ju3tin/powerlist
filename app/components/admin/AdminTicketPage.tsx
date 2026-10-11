@@ -49,7 +49,7 @@ export default function AdminTicketPage() {
 
   const [role, setRole] = useState("Founder, Women in Blockchain ");
 
-  const [category, setCategory] = useState("Senior");
+  const [category, setCategory] = useState("Senior Leaders");
 
   const [year, setYear] = useState("2026");
 
