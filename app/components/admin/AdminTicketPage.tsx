@@ -44,7 +44,7 @@ export default function AdminTicketPage() {
   const [tokenId, setTokenId] = useState("387640");
 
   const [imageUrl, setImageUrl] = useState(
-    "/images/Allen-Rohner-low-res.jpg"
+    "/images/image_2026-10-10_174425987.png"
   );
 
   const [role, setRole] = useState("CTO and Co-founder");

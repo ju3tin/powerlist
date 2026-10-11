@@ -44,7 +44,7 @@ export default function AdminTicketPage() {
   const [tokenId, setTokenId] = useState("387640");
 
   const [imageUrl, setImageUrl] = useState(
-    "https://ww2.innovatefinance.com/wp-content/uploads/2025/05/Allen-Rohner-low-res.jpg"
+    "https://ww2.innovatefinance.com/wp-content/uploads/2025/05/image_2026-10-10_174425987.png"
   );
 
   const [role, setRole] = useState("CTO and Co-founder");
