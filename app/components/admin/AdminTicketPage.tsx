@@ -47,7 +47,7 @@ export default function AdminTicketPage() {
     "/images/image_2026-10-10_174425987.png"
   );
 
-  const [role, setRole] = useState("CTO and Co-founder");
+  const [role, setRole] = useState("Founder, Women in Blockchain ");
 
   const [category, setCategory] = useState("Senior");
 
