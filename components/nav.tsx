@@ -14,7 +14,7 @@ export default function AdminNav() {
 
   return (
     <nav className="bg-white border-b px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-6">
+      <div style={{ color: "#000000" }} className="flex items-center gap-6">
         <Link
           href="/admin/dashboard"
           className="font-semibold text-lg"

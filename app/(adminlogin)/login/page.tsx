@@ -59,7 +59,7 @@ router.refresh();
         </div>
 
         <h1 className="text-2xl font-bold text-center mb-1">Admin Login</h1>
-        <p className="text-center text-gray-500 text-sm mb-8">Profile Manager</p>
+        <p style={{ color: "#000000" }} className="text-center text-gray-500 text-sm mb-8">Profile Manager</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
