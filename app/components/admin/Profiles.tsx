@@ -368,50 +368,83 @@ export default function ProfilesPage() {
               </h2>
 
               {/* Basic fields */}
-              <div className="space-y-4">
-                {[
-                  "title",
-                  "email",
-                  "artist_title",
-                  "date",
-                  "slug",
-                  "featured_image",
-                  "power_list_category",
-                  "link",
-                  "count",
-                  "company_logo",
-                  "full_slug",
-                ].map((key) => (
-                  <div key={key}>
-                    <label className="block text-sm font-medium mb-1 capitalize">
-                      {key.replace(/_/g, " ")}
+<div className="space-y-4">
+  {[
+    "title",
+    "email",
+    "artist_title",
+    "date",
+    "slug",
+    "featured_image",
+    "power_list_category",
+    "link",
+    "count",
+    "company_logo",
+    "full_slug",
+  ].map((key) => (
+    <div key={key}>
+      <label className="block text-sm font-medium mb-1 capitalize">
+        {key.replace(/_/g, " ")}
 
-                      {IMPORTANT_FIELDS.includes(key) &&
-                        !form[key] && (
-                          <span className="ml-2 text-xs text-red-500">
-                            missing
-                          </span>
-                        )}
-                    </label>
+        {IMPORTANT_FIELDS.includes(key) && !form[key] && (
+          <span className="ml-2 text-xs text-red-500">
+            missing
+          </span>
+        )}
+      </label>
 
-                    <input
-                      type={
-                        key === "email"
-                          ? "email"
-                          : "text"
-                      }
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={(form[key] as string) ?? ""}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          [key]: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
+      <input
+        type={key === "email" ? "email" : "text"}
+        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={(form[key] as string) ?? ""}
+        onChange={(e) =>
+          setForm((prev) => ({
+            ...prev,
+            [key]: e.target.value,
+          }))
+        }
+      />
+
+      {/* Featured image preview */}
+      {key === "featured_image" && (
+        <div className="mt-3">
+          {form.featured_image ? (
+            <div className="border rounded-lg p-3 bg-gray-50">
+              <p className="text-xs font-medium text-gray-500 mb-2">
+                Featured image preview
+              </p>
+
+              <img
+                src={form.featured_image}
+                alt={`Featured image for ${form.title || "profile"}`}
+                className="w-full max-w-sm max-h-80 object-contain rounded-lg bg-white border"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+                onLoad={(e) => {
+                  e.currentTarget.style.display = "block";
+                }}
+              />
+
+              <a
+                href={form.featured_image}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-2 text-sm text-blue-600 hover:underline"
+              >
+                Open image in new tab
+              </a>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 mt-2">
+              No featured image URL entered.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  ))}
+</div>
 
               {/* Content */}
               <div>
