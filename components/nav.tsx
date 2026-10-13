@@ -42,6 +42,12 @@ export default function AdminNav() {
         </Link>
 
         <Link
+          href="/admin/nftrecipient"
+          className="text-sm text-gray-600 hover:text-blue-600"
+        >
+          NFT Recipient
+        </Link>
+        <Link
           href="/admin/upload"
           className="text-sm text-gray-600 hover:text-blue-600"
         >
