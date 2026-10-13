@@ -260,10 +260,6 @@ export default function MintNFTButton({
       return;
     }
 
-    if (!isValidWalletAddress(wallet)) {
-      setError("Enter a valid 0x wallet address.");
-      return;
-    }
 
     if (!currentTokenId.trim()) {
       setError("Please enter a token ID.");
@@ -359,12 +355,25 @@ export default function MintNFTButton({
   }
 
   function handleFakeMint() {
+    setError("");
+    setNotice("");
+    setDemoConfirmed(false);
+  
+    // A preview must exist before proceeding to mint.
     if (!previewUrl) {
-      setError("Generate the ticket preview before using the demo button.");
+      setError("Generate the ticket preview before minting.");
       return;
     }
-
-    setError("");
+  
+    // Wallet validation happens only when the user clicks Final Mint.
+    if (!isValidWalletAddress(wallet)) {
+      setError(
+        "Enter a valid wallet address (0x followed by 40 hexadecimal characters) before minting."
+      );
+      return;
+    }
+  
+    // This is still a demo, not a real blockchain transaction.
     setDemoConfirmed(true);
     setNotice(
       "Demo complete. No NFT was minted and no blockchain transaction was sent."
