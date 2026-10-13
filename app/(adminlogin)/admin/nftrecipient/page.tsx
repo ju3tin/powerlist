@@ -589,90 +589,80 @@ const toggleSelected = async (profile: Profile) => {
 };
 
 
-
 const selectAllFiltered = async () => {
   if (filteredProfiles.length === 0) return;
 
   const ids = filteredProfiles.map((profile) => profile._id);
-
   const allSelected = ids.every((id) => selectedIds.includes(id));
   const recipientSelected = !allSelected;
 
   setError("");
   setNotice("");
-
   setSavingSelectionIds((current) =>
     Array.from(new Set([...current, ...ids]))
   );
 
   try {
-    const results = await Promise.allSettled(
-      filteredProfiles.map(async (profile) => {
-        const response = await fetch("/api/nft-selections", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            profileId: profile._id,
-            name: profile.title || "Untitled profile",
-            jobTitle: profile.artist_title || "",
-            category: profile.power_list_category || "",
-            imageUrl: profile.featured_image || "",
-            companyLogo: profile.company_logo || "",
-            linkedinUrl: getLinkedIn(profile),
-            wallet: getWallets(profile)[0]?.other_type_value || "",
-            year: 2026,
-            recipientSelected,
-            status: recipientSelected ? "selected" : "removed",
-            mintStatus: "not_minted",
-          }),
-        });
+    // Process in batches of 5–10 instead of all at once
+    const CONCURRENCY = 5;
+    const successfulIds: string[] = [];
+    let failedCount = 0;
 
-        const data = await response.json().catch(() => ({}));
+    for (let i = 0; i < filteredProfiles.length; i += CONCURRENCY) {
+      const batch = filteredProfiles.slice(i, i + CONCURRENCY);
 
-        if (!response.ok) {
-          throw new Error(
-            data.error ||
-              data.message ||
-              `Failed to save ${profile.title || profile._id}`
-          );
+      const results = await Promise.allSettled(
+        batch.map(async (profile) => {
+          const response = await fetch("/api/nft-selections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              profileId: profile._id,
+              name: profile.title || "Untitled profile",
+              jobTitle: profile.artist_title || "",
+              category: profile.power_list_category || "",
+              imageUrl: profile.featured_image || "",
+              companyLogo: profile.company_logo || "",
+              linkedinUrl: getLinkedIn(profile),
+              wallet: getWallets(profile)[0]?.other_type_value || "",
+              year: 2026,
+              recipientSelected,
+              status: recipientSelected ? "selected" : "removed",
+              mintStatus: "not_minted",
+            }),
+          });
+
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(
+              data.error || data.message || `Failed to save ${profile.title || profile._id}`
+            );
+          }
+          return profile._id;
+        })
+      );
+
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          successfulIds.push(result.value);
+        } else {
+          failedCount++;
         }
+      });
+    }
 
-        return profile._id;
-      })
-    );
-
-    const successfulIds = results
-      .filter(
-        (
-          result
-        ): result is PromiseFulfilledResult<string> =>
-          result.status === "fulfilled"
-      )
-      .map((result) => result.value);
-
-    const failedCount = results.length - successfulIds.length;
-
-    // Update the UI only for profiles saved successfully.
+    // Update UI
     setSelectedIds((current) => {
       const next = new Set(current);
-
       for (const id of successfulIds) {
-        if (recipientSelected) {
-          next.add(id);
-        } else {
-          next.delete(id);
-        }
+        if (recipientSelected) next.add(id);
+        else next.delete(id);
       }
-
       return Array.from(next);
     });
 
     if (failedCount > 0) {
-      setError(
-        `${successfulIds.length} profiles saved; ${failedCount} failed. Please retry.`
-      );
+      setError(`${successfulIds.length} profiles saved; ${failedCount} failed. Please retry.`);
     } else {
       setNotice(
         recipientSelected
@@ -682,9 +672,7 @@ const selectAllFiltered = async () => {
     }
   } catch (error) {
     setError(
-      error instanceof Error
-        ? error.message
-        : "Failed to update recipient selections."
+      error instanceof Error ? error.message : "Failed to update recipient selections."
     );
   } finally {
     setSavingSelectionIds((current) =>
