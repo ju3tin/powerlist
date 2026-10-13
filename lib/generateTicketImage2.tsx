@@ -1,7 +1,8 @@
 import "server-only";
-
-import { ImageResponse } from "@vercel/og";
+import fs from "node:fs/promises";
+import path from "node:path";
 import sharp from "sharp";
+import { ImageResponse } from "@vercel/og";
 import {
   defaultTicketConfig,
   type TicketConfig,
@@ -61,6 +62,9 @@ async function loadFontData(fontFamily: string): Promise<ArrayBuffer | null> {
   }
 }
 
+
+
+
 async function toPngDataUrl(
   imageUrl: string,
   w = 200,
@@ -68,26 +72,88 @@ async function toPngDataUrl(
 ): Promise<string | null> {
   try {
     if (!imageUrl) return null;
-    const res = await fetch(imageUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; TicketGenerator/1.0)",
-      },
-    });
-    if (!res.ok) return null;
-    const input = Buffer.from(await res.arrayBuffer());
+
+    let input: Buffer;
+
+    if (imageUrl.startsWith("/")) {
+      // Read local images directly from public/.
+      const pathname = decodeURIComponent(
+        new URL(imageUrl, "http://localhost").pathname
+      );
+
+      const publicDir = path.resolve(process.cwd(), "public");
+      const filePath = path.resolve(publicDir, `.${pathname}`);
+
+      if (!filePath.startsWith(publicDir + path.sep)) {
+        throw new Error("Invalid local image path.");
+      }
+
+      input = await fs.readFile(filePath);
+    } else {
+      const parsedUrl = new URL(imageUrl);
+
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        throw new Error("Image URL must use HTTP or HTTPS.");
+      }
+
+      console.log("Fetching ticket image:", parsedUrl.toString());
+
+      const res = await fetch(parsedUrl.toString(), {
+        method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          Accept: "image/*,*/*;q=0.8",
+          Referer: "https://ww2.innovatefinance.com/",
+        },
+        redirect: "follow",
+        cache: "no-store",
+      });
+
+      console.log("Ticket image response:", {
+        status: res.status,
+        contentType: res.headers.get("content-type"),
+        finalUrl: res.url,
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => "");
+        throw new Error(
+          `Image request failed: ${res.status} ${res.statusText}. ` +
+          errorBody.slice(0, 200)
+        );
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+
+      if (!contentType.toLowerCase().startsWith("image/")) {
+        throw new Error(`Expected an image, received: ${contentType}`);
+      }
+
+      input = Buffer.from(await res.arrayBuffer());
+
+      if (!input.length) {
+        throw new Error("The image response was empty.");
+      }
+    }
+
     const png = await sharp(input)
+      .rotate()
       .png()
       .resize(Math.max(1, w), Math.max(1, h), {
         fit: "cover",
         position: "centre",
       })
       .toBuffer();
+
     return `data:image/png;base64,${png.toString("base64")}`;
   } catch (err) {
     console.warn("toPngDataUrl failed:", imageUrl, err);
     return null;
   }
 }
+
+
+
 
 export async function generateTicketImage({
   name,
