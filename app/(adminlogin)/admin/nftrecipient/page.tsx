@@ -1,6 +1,7 @@
 
 "use client";
 import AdminNav from "@/components/nav";
+import RecipientSelection from "@/components/RecipientSelection";
 import MintNFTButton from "@/components/admin/MintNFTButton";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -336,6 +337,7 @@ function ProfileDetails({ profile }: { profile: Profile }) {
 }
 
 export default function NFTRecipientsPage() {
+  const [savingSelectionIds, setSavingSelectionIds] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -402,6 +404,34 @@ export default function NFTRecipientsPage() {
   useEffect(() => {
     void loadProfiles();
   }, [loadProfiles]);
+  useEffect(() => {
+    const loadSavedSelections = async () => {
+      try {
+        const response = await fetch(
+          "/api/nft-selections?year=2026&recipientSelected=true",
+          { cache: "no-store" }
+        );
+  
+        const data = await response.json();
+  
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.error || "Failed to load saved recipient selections."
+          );
+        }
+  
+        const savedIds = (data.selections || []).map(
+          (selection: { profileId: string }) => selection.profileId
+        );
+  
+        setSelectedIds(savedIds);
+      } catch (error) {
+        console.error("Failed to load saved selections:", error);
+      }
+    };
+  
+    loadSavedSelections();
+  }, []);
 
   const categories = useMemo(
     () =>
@@ -487,13 +517,77 @@ export default function NFTRecipientsPage() {
     setEditForm((current) => ({ ...current, [key]: value }));
   };
 
-  const toggleSelected = (id: string) => {
+  
+const toggleSelected = async (profile: Profile) => {
+  const id = profile._id;
+  const isCurrentlySelected = selectedIds.includes(id);
+  const recipientSelected = !isCurrentlySelected;
+
+  setError("");
+  setNotice("");
+
+  // Prevent repeated clicks while saving.
+  if (savingSelectionIds.includes(id)) return;
+
+  setSavingSelectionIds((current) => [...current, id]);
+
+  try {
+    const response = await fetch("/api/nft-selections", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        profileId: id,
+        name: profile.title || "Untitled profile",
+        jobTitle: profile.artist_title || "",
+        category: profile.power_list_category || "",
+        imageUrl: profile.featured_image || "",
+        companyLogo: profile.company_logo || "",
+        linkedinUrl: getLinkedIn(profile),
+        wallet: getWallets(profile)[0]?.other_type_value || "",
+        year: 2026,
+        recipientSelected,
+        status: recipientSelected ? "selected" : "removed",
+        mintStatus: "not_minted",
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || data.message || "Failed to save recipient selection."
+      );
+    }
+
+    // Update the checkbox only after the API confirms success.
     setSelectedIds((current) =>
-      current.includes(id)
-        ? current.filter((selectedId) => selectedId !== id)
-        : [...current, id]
+      recipientSelected
+        ? current.includes(id)
+          ? current
+          : [...current, id]
+        : current.filter((selectedId) => selectedId !== id)
     );
-  };
+
+    setNotice(
+      recipientSelected
+        ? `${profile.title || "Recipient"} saved as a selected recipient.`
+        : `${profile.title || "Recipient"} removed from selected recipients.`
+    );
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Failed to save recipient selection."
+    );
+  } finally {
+    setSavingSelectionIds((current) =>
+      current.filter((selectionId) => selectionId !== id)
+    );
+  }
+};
+
 
   const selectAllFiltered = () => {
     const ids = filteredProfiles.map((profile) => profile._id);
@@ -858,18 +952,18 @@ export default function NFTRecipientsPage() {
                   }`}
                 >
                   <div className="flex items-start gap-3 p-4 sm:p-5">
-                    <button
-                      type="button"
-                      onClick={() => toggleSelected(profile._id)}
-                      className="mt-1 shrink-0 text-indigo-600"
-                      aria-label={selected ? "Deselect profile" : "Select profile"}
-                    >
-                      {selected ? (
-                        <CheckSquare className="h-5 w-5" />
-                      ) : (
-                        <Square className="h-5 w-5 text-gray-400" />
-                      )}
-                    </button>
+                  <button
+  type="button"
+  onClick={() => void toggleSelected(profile)}
+  disabled={savingSelectionIds.includes(profile._id)}
+  aria-label={selected ? "Deselect recipient" : "Select recipient"}
+>
+  {selected ? (
+    <CheckSquare className="h-5 w-5 text-indigo-600" />
+  ) : (
+    <Square className="h-5 w-5 text-gray-400" />
+  )}
+</button>
 
                     {profile.featured_image ? (
                       <img
