@@ -593,99 +593,59 @@ const toggleSelected = async (profile: Profile) => {
 const selectAllFiltered = async () => {
   if (filteredProfiles.length === 0) return;
 
-  const ids = filteredProfiles.map((profile) => profile._id);
-
+  const ids = filteredProfiles.map((p) => p._id);
   const allSelected = ids.every((id) => selectedIds.includes(id));
   const recipientSelected = !allSelected;
 
   setError("");
   setNotice("");
-
-  setSavingSelectionIds((current) =>
-    Array.from(new Set([...current, ...ids]))
-  );
+  setSavingSelectionIds((current) => Array.from(new Set([...current, ...ids])));
 
   try {
-    const results = await Promise.allSettled(
-      filteredProfiles.map(async (profile) => {
-        const response = await fetch("/api/nft-selections", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            profileId: profile._id,
-            name: profile.title || "Untitled profile",
-            jobTitle: profile.artist_title || "",
-            category: profile.power_list_category || "",
-            imageUrl: profile.featured_image || "",
-            companyLogo: profile.company_logo || "",
-            linkedinUrl: getLinkedIn(profile),
-            wallet: getWallets(profile)[0]?.other_type_value || "",
-            year: 2026,
-            recipientSelected,
-            status: recipientSelected ? "selected" : "removed",
-            mintStatus: "not_minted",
-          }),
-        });
+    const response = await fetch("/api/nft-selections/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        profiles: filteredProfiles.map((profile) => ({
+          profileId: profile._id,
+          name: profile.title || "Untitled profile",
+          jobTitle: profile.artist_title || "",
+          category: profile.power_list_category || "",
+          imageUrl: profile.featured_image || "",
+          companyLogo: profile.company_logo || "",
+          linkedinUrl: getLinkedIn(profile),
+          wallet: getWallets(profile)[0]?.other_type_value || "",
+          year: 2026,
+          mintStatus: "not_minted",
+        })),
+        recipientSelected,
+        status: recipientSelected ? "selected" : "removed",
+      }),
+    });
 
-        const data = await response.json().catch(() => ({}));
+    const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(
-            data.error ||
-              data.message ||
-              `Failed to save ${profile.title || profile._id}`
-          );
-        }
+    if (!response.ok) {
+      throw new Error(data.error || "Bulk update failed");
+    }
 
-        return profile._id;
-      })
-    );
-
-    const successfulIds = results
-      .filter(
-        (
-          result
-        ): result is PromiseFulfilledResult<string> =>
-          result.status === "fulfilled"
-      )
-      .map((result) => result.value);
-
-    const failedCount = results.length - successfulIds.length;
-
-    // Update the UI only for profiles saved successfully.
+    // Update UI
     setSelectedIds((current) => {
       const next = new Set(current);
-
-      for (const id of successfulIds) {
-        if (recipientSelected) {
-          next.add(id);
-        } else {
-          next.delete(id);
-        }
-      }
-
+      ids.forEach((id) => {
+        if (recipientSelected) next.add(id);
+        else next.delete(id);
+      });
       return Array.from(next);
     });
 
-    if (failedCount > 0) {
-      setError(
-        `${successfulIds.length} profiles saved; ${failedCount} failed. Please retry.`
-      );
-    } else {
-      setNotice(
-        recipientSelected
-          ? `${successfulIds.length} profiles saved as selected NFT recipients.`
-          : `${successfulIds.length} profiles removed from selected NFT recipients.`
-      );
-    }
-  } catch (error) {
-    setError(
-      error instanceof Error
-        ? error.message
-        : "Failed to update recipient selections."
+    setNotice(
+      recipientSelected
+        ? `${ids.length} profiles selected`
+        : `${ids.length} profiles removed`
     );
+  } catch (error: any) {
+    setError(error.message || "Failed to update selections");
   } finally {
     setSavingSelectionIds((current) =>
       current.filter((id) => !ids.includes(id))
