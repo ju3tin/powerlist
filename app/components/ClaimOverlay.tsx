@@ -1,5 +1,5 @@
 "use client";
-
+import TimerRedirect from "@/app/components/TimerRedirect";
 import {
   FormEvent,
   Suspense,
@@ -215,7 +215,12 @@ function ClaimOverlayContent() {
           {claimError && (
             <div className="mt-4 rounded-2xl bg-[#fff1f1] p-4 text-sm text-[#9b2c2c]">
               {claimError}
+              <TimerRedirect
+            seconds={5}
+            redirectTo="/requestform"
+          />
             </div>
+          
           )}
 
           <button

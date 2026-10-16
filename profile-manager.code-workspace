@@ -5,6 +5,12 @@
 		},
 		{
 			"path": "../congregationroom22"
+		},
+		{
+			"path": "../questions"
+		},
+		{
+			"path": "../quest2"
 		}
 	],
 	"settings": {}
