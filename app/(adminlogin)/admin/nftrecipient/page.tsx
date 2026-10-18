@@ -1050,12 +1050,22 @@ const selectAllFiltered = async () => {
                             {getGender(profile)}
                           </span>
                         )}
-                        {linkedin && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs text-sky-700">
-                            <Link className="h-3 w-3" />
-                            LinkedIn
-                          </span>
-                        )}
+                       {linkedin && (
+  <a
+    href={
+      linkedin.startsWith("http")
+        ? linkedin
+        : `https://${linkedin}`
+    }
+    target="_blank"
+    rel="noopener noreferrer"
+    className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs text-sky-700 hover:bg-sky-100"
+  >
+    <Link className="h-3 w-3" />
+    LinkedIn
+    <ExternalLink className="h-3 w-3" />
+  </a>
+)}
                         {wallets.length > 0 && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs text-green-700">
                             <Wallet className="h-3 w-3" />
