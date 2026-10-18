@@ -53,6 +53,12 @@ export default function AdminNav() {
         >
           Upload JSON
         </Link>
+        <Link
+          href="/admin/images"
+          className="text-sm text-gray-600 hover:text-blue-600"
+        >
+          Upload Image
+        </Link>
       </div>
     <LogoutButton />
     </nav>
