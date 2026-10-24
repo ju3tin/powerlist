@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../quest2"
+		},
+		{
+			"path": "../UK-GeoJSON"
 		}
 	],
 	"settings": {}
