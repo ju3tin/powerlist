@@ -43,6 +43,8 @@ declare global {
   }
 }
 
+const [matchedRecipients, setMatchedRecipients] = useState<Selection[]>([]);
+
 const steps = [
   {
     number: "01",
@@ -223,7 +225,9 @@ export default function Page() {
 
   const [isSignInOpen, setIsSignInOpen] =
     useState(false);
-  
+    const [matchedRecipients, setMatchedRecipients] = useState<Selection[]>([]);
+    //const [hasProfile, setHasProfile] = useState(false);
+    const [isLoadingRecipients, setIsLoadingRecipients] = useState(true);
 
   /*
    * ------------------------------------------------
@@ -424,6 +428,8 @@ useEffect(() => {
 
 
 
+
+
 useEffect(() => {
   interface Selection {
     _id: string;
@@ -435,7 +441,12 @@ useEffect(() => {
     [key: string]: any;
   }
 
+  let cancelled = false;
+
   async function claimtcket5() {
+    setIsLoadingRecipients(true);
+    //setMatchedRecipients(recipients);
+
     try {
       // 1. Fetch LinkedIn profile
       const response1 = await fetch("/api/linkedin/profile", {
@@ -450,15 +461,31 @@ useEffect(() => {
 
       const data1 = await response1.json();
 
-      // Get profileId from the nested profile object
-      const profileId = data1.profile?.profileId;
+      if (cancelled) return;
 
-      if (!profileId) {
-        console.log("No LinkedIn profileId found");
+      // 2. Check whether a LinkedIn profile exists
+      const profileId: string | undefined =
+        data1.profile?.profileId;
+
+      setHasProfile(
+        data1.authenticated === true &&
+        data1.hasProfile === true &&
+        Boolean(profileId)
+      );
+
+      // No profile: clear recipients and stop
+      if (
+        data1.authenticated !== true ||
+        data1.hasProfile !== true ||
+        !profileId
+      ) {
+        setMatchedRecipients([]);
         return;
       }
 
-      // 2. Fetch NFT selections
+      
+
+      // 3. Fetch NFT selections
       const response2 = await fetch("/api/nft-selections", {
         method: "GET",
         credentials: "include",
@@ -471,35 +498,52 @@ useEffect(() => {
 
       const data2 = await response2.json();
 
-      // 3. Ensure selections is an array
+      if (cancelled) return;
+
+      // 4. Normalize selections into an array
       const selections: Selection[] = Array.isArray(data2.selections)
         ? data2.selections
         : data2.selections
           ? [data2.selections]
           : [];
 
-      // 4. Match profileId and recipientSelected === true
-      const matchedRecipients = selections.filter(
+      // 5. Match the profile and selected recipients
+      const recipients = selections.filter(
         (selection) =>
           selection.profileId === profileId &&
           selection.recipientSelected === true
       );
 
-      // 5. Log results
+      // 6. Save matching recipients in React state
+     // setMatchedRecipients(recipients);
+
+      // 7. Log results for debugging
       console.log("LinkedIn profileId:", profileId);
-      console.log("All selections:", selections);
-      console.log("Matched recipients:", matchedRecipients);
-      const hasSelectedRecipients: boolean = matchedRecipients.length > 0;
-
-      console.log("Has selected recipients:", hasSelectedRecipients);
-
+      console.log("Matched recipients:", recipients);
+      console.log(
+        "Has selected recipients:",
+        recipients.length > 0
+      );
     } catch (error) {
-      console.error("Error fetching or matching data:", error);
+      if (!cancelled) {
+        console.error("Error fetching profile or selections:", error);
+        setMatchedRecipients([]);
+      }
+    } finally {
+      if (!cancelled) {
+        setIsLoadingRecipients(false);
+      }
     }
   }
 
   claimtcket5();
+
+  return () => {
+    cancelled = true;
+  };
 }, []);
+
+
 
 
 
@@ -932,118 +976,103 @@ const router = useRouter();
 
         {/* SIGN-IN MODAL */}
 
-        {isSignInOpen && hasProfile ? (
-          <div
-            className="fixed inset-0 z-50 grid place-items-center bg-[#10253f]/45 p-6 backdrop-blur-sm"
-            onMouseDown={(event) => {
-              if (
-                event.target ===
-                event.currentTarget
-              ) {
-                setIsSignInOpen(false);
-              }
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="signin-title"
-              className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
-            >
+        
+{isSignInOpen && (
+  <div
+    className="fixed inset-0 z-50 grid place-items-center bg-[#10253f]/45 p-6 backdrop-blur-sm"
+    onMouseDown={(event) => {
+      if (event.target === event.currentTarget) {
+        setIsSignInOpen(false);
+      }
+    }}
+  >
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="signin-title"
+      className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
+    >
+      <button
+        type="button"
+        onClick={() => setIsSignInOpen(false)}
+        className="absolute right-5 top-5 rounded-full p-2 text-[#8a9bab] hover:bg-[#f2f5f8]"
+        aria-label="Close"
+      >
+        <X className="size-5" />
+      </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  setIsSignInOpen(false)
-                }
-                className="absolute right-5 top-5 rounded-full p-2 text-[#8a9bab] hover:bg-[#f2f5f8]"
-                aria-label="Close"
-              >
-                <X className="size-5" />
-              </button>
-
-              <div className="grid size-14 place-items-center rounded-2xl bg-[#eaf3ff] text-[#0a66c2]">
-                <BriefcaseBusiness className="size-7" />
-              </div>
-
-              <h2
-                id="signin-title"
-                className="mt-7 text-3xl font-semibold tracking-[-.05em]"
-              >
-               this worked
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-[#718294]">
-                Sign in with LinkedIn to
-                verify your Powerlist profile.
-              </p>
-
-              <button
-                type="button"
-                onClick={handleLogin}
-                className="mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
-              >
-                <BriefcaseBusiness className="size-5" />
-                Continue with LinkedIn
-              </button>
-
-            </div>
+      {!hasProfile ? (
+        <>
+          <div className="grid size-14 place-items-center rounded-2xl bg-[#eaf3ff] text-[#0a66c2]">
+            <BriefcaseBusiness className="size-7" />
           </div>
-        ): isSignInOpen && (<div
-          className="fixed inset-0 z-50 grid place-items-center bg-[#10253f]/45 p-6 backdrop-blur-sm"
-          onMouseDown={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              setIsSignInOpen(false);
-            }
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="signin-title"
-            className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
+
+          <h2
+            id="signin-title"
+            className="mt-7 text-3xl font-semibold tracking-[-.05em]"
           >
+            Sign in with LinkedIn
+          </h2>
 
-            <button
-              type="button"
-              onClick={() =>
-                setIsSignInOpen(false)
-              }
-              className="absolute right-5 top-5 rounded-full p-2 text-[#8a9bab] hover:bg-[#f2f5f8]"
-              aria-label="Close"
-            >
-              <X className="size-5" />
-            </button>
+          <p className="mt-3 text-sm leading-6 text-[#718294]">
+            Sign in with LinkedIn to verify your Powerlist profile.
+          </p>
 
-            <div className="grid size-14 place-items-center rounded-2xl bg-[#eaf3ff] text-[#0a66c2]">
-              <BriefcaseBusiness className="size-7" />
+          <button
+            type="button"
+            onClick={handleLogin}
+            className="mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
+          >
+            <BriefcaseBusiness className="size-5" />
+            Continue with LinkedIn
+          </button>
+        </>
+      ) : matchedRecipients.length === 0 ? (
+        <>
+          <h2
+            id="signin-title"
+            className="mt-4 text-3xl font-semibold tracking-[-.05em]"
+          >
+            Sorry, you didn't make the list
+          </h2>
+
+          <p className="mt-3 text-sm leading-6 text-[#718294]">
+            Unfortunately, your profile isn't among the selected recipients
+            for this Powerlist. Thanks for checking!
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setIsSignInOpen(false)}
+            className="mt-7 w-full rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
+          >
+            Close
+          </button>
+        </>
+      ) : (
+        <>
+          <h2
+            id="signin-title"
+            className="mt-4 text-3xl font-semibold tracking-[-.05em]"
+          >
+            Congratulations!
+          </h2>
+
+          <p className="mt-3 text-sm leading-6 text-[#718294]">
+            You've made the list! Here's your NFT.
+          </p>
+
+          {matchedRecipients.map(() => (
+            <div className="mt-6">
+            {/*  <YourNFTComponent recipient={recipient} /> */}
             </div>
+          ))}
+        </>
+      )}
+    </div>
+  </div>
+)}
 
-            <h2
-              id="signin-title"
-              className="mt-7 text-3xl font-semibold tracking-[-.05em]"
-            >
-your mum            </h2>
-
-            <p className="mt-3 text-sm leading-6 text-[#718294]">
-              Sign in with LinkedIn to
-              verify your Powerlist profile.
-            </p>
-
-            <button
-              type="button"
-              onClick={handleLogin}
-              className="mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
-            >
-              <BriefcaseBusiness className="size-5" />
-              Continue with LinkedIn
-            </button>
-
-          </div>
-        </div>)}
 
       </main>
 
