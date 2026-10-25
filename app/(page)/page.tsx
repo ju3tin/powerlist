@@ -1,16 +1,10 @@
 "use client";
-import TimerRedirect from "@/app/components/TimerRedirect";
-import { useRouter } from "next/navigation";
-import {
-  FormEvent,
-  useEffect,
-  useState,
-} from "react";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import HeroSection from "@/components/hero1";
 import PageStyle from "./PageStyle";
 import ClaimOverlay from "@/app/components/ClaimOverlay";
-
 import {
   BriefcaseBusiness,
   Check,
@@ -18,19 +12,16 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { profile } from "console";
 
 type CoreProvider = {
   request: (args: {
     method: string;
     params?: unknown[];
   }) => Promise<unknown>;
-
   on?: (
     event: string,
     handler: (...args: unknown[]) => void
   ) => void;
-
   removeListener?: (
     event: string,
     handler: (...args: unknown[]) => void
@@ -43,7 +34,32 @@ declare global {
   }
 }
 
-//const [matchedRecipients, setMatchedRecipients] = useState<Selection[]>([]);
+interface NFTSelection {
+  _id: string;
+  profileId: string;
+  recipientSelected: boolean;
+  name: string;
+  jobTitle?: string;
+  imageUrl?: string;
+}
+
+interface LinkedInProfileResponse {
+  authenticated?: boolean;
+  hasProfile?: boolean;
+  profile?: {
+    id?: number;
+    title?: string;
+    slug?: string;
+    profileId?: string;
+    artist_title?: string;
+    featured_image?: string;
+    power_list_category?: string;
+  };
+}
+
+interface NFTSelectionsResponse {
+  selections?: NFTSelection[] | NFTSelection | null;
+}
 
 const steps = [
   {
@@ -64,41 +80,48 @@ const steps = [
 ];
 
 export default function Page() {
-  /*
-   * ------------------------------------------------
-   * LinkedIn authentication
-   * ------------------------------------------------
-   *
-   * IMPORTANT:
-   * This is completely separate from the Core Wallet.
-   *
-   * /api/linkedin/me checks the secure
-   * linkedin_session cookie on the server.
-   */
+  const router = useRouter();
 
-  const [
-    isLinkedInAuthenticated,
-    setIsLinkedInAuthenticated,
-  ] = useState(false);
-
-  const [authChecked, setAuthChecked] =
+  // LinkedIn authentication
+  const [isLinkedInAuthenticated, setIsLinkedInAuthenticated] =
     useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [hasProfile, setHasProfile] = useState(false);
 
-  /*
-   * ------------------------------------------------
-   * Core Wallet
-   * ------------------------------------------------
-   */
+  // Core Wallet
+  const [walletAddress, setWalletAddress] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
+  const [walletError, setWalletError] = useState("");
 
-  const [walletAddress, setWalletAddress] =
-    useState("");
+  // Page UI
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
 
-  const [isCopied, setIsCopied] =
+  // NFT recipient state
+  const [matchedRecipients, setMatchedRecipients] =
+    useState<NFTSelection[]>([]);
+  const [hasSelectedRecipients, setHasSelectedRecipients] =
     useState(false);
+  const [isLoadingRecipients, setIsLoadingRecipients] =
+    useState(true);
+  const [recipientError, setRecipientError] = useState("");
 
-  const [walletError, setWalletError] =
-    useState("");
+  // Existing Powerlist badge state
+  const [verifiedProfile, setVerifiedProfile] = useState<{
+    title: string;
+    artist_title?: string;
+    featured_image?: string;
+    profileId?: string;
+  } | null>(null);
 
+  const [badgeClaimed, setBadgeClaimed] = useState(false);
+
+  // LinkedIn login
+  const handleLogin = () => {
+    window.location.href = "/api/linkedin/login";
+  };
+
+  // Connect Core Wallet
   const connectCoreWallet = async () => {
     setWalletError("");
 
@@ -106,28 +129,20 @@ export default function Page() {
       const provider = window.avalanche;
 
       if (!provider) {
-        window.open(
-          "https://core.app/",
-          "_blank"
-        );
+        window.open("https://core.app/", "_blank");
 
         setWalletError(
           "Core Wallet not detected. Install the Core browser extension and try again."
         );
-
         return;
       }
 
-      const accounts =
-        (await provider.request({
-          method: "eth_requestAccounts",
-        })) as string[];
+      const accounts = (await provider.request({
+        method: "eth_requestAccounts",
+      })) as string[];
 
       if (!accounts?.length) {
-        setWalletError(
-          "No wallet account was returned."
-        );
-
+        setWalletError("No wallet account was returned.");
         return;
       }
 
@@ -142,6 +157,7 @@ export default function Page() {
     }
   };
 
+  // Copy wallet address
   const copyAddress = async () => {
     if (!walletAddress) {
       await connectCoreWallet();
@@ -149,147 +165,56 @@ export default function Page() {
     }
 
     try {
-      await navigator.clipboard.writeText(
-        walletAddress
-      );
-
+      await navigator.clipboard.writeText(walletAddress);
       setIsCopied(true);
 
       window.setTimeout(() => {
         setIsCopied(false);
       }, 2000);
     } catch {
-      setWalletError(
-        "Unable to copy wallet address."
-      );
+      setWalletError("Unable to copy wallet address.");
     }
   };
 
-  /*
-   * Restore Core Wallet connection.
-   */
-
+  // Restore an existing Core Wallet connection
   useEffect(() => {
     const provider = window.avalanche;
 
     if (!provider) return;
 
-    const handleAccounts = (
-      ...args: unknown[]
-    ) => {
-      const accounts =
-        args[0] as string[];
+    const handleAccounts = (...args: unknown[]) => {
+      const accounts = args[0] as string[] | undefined;
 
-      setWalletAddress(
-        accounts?.[0] ?? ""
-      );
-
+      setWalletAddress(accounts?.[0] ?? "");
       setIsCopied(false);
     };
 
-    provider.on?.(
-      "accountsChanged",
-      handleAccounts
-    );
+    provider.on?.("accountsChanged", handleAccounts);
 
     provider
-      .request({
-        method: "eth_accounts",
-      })
+      .request({ method: "eth_accounts" })
       .then((accounts) => {
-        const list =
-          accounts as string[];
-
-        setWalletAddress(
-          list?.[0] ?? ""
-        );
+        const list = accounts as string[];
+        setWalletAddress(list?.[0] ?? "");
       })
       .catch(() => {});
 
     return () => {
-      provider.removeListener?.(
-        "accountsChanged",
-        handleAccounts
-      );
+      provider.removeListener?.("accountsChanged", handleAccounts);
     };
   }, []);
 
-  /*
-   * ------------------------------------------------
-   * UI state
-   * ------------------------------------------------
-   */
-  const [hasSelectedRecipients, setHasSelectedRecipients] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] =
-    useState(false);
-
-  const [isSignInOpen, setIsSignInOpen] =
-    useState(false);
-    const [matchedRecipients, setMatchedRecipients] = useState<Selection[]>([]);
-    //const [hasProfile, setHasProfile] = useState(false);
-    const [isLoadingRecipients, setIsLoadingRecipients] = useState(true);
-
-  /*
-   * ------------------------------------------------
-   * Old verification/badge state
-   * ------------------------------------------------
-   */
-
-  const [linkedinUrl, setLinkedinUrl] =
-    useState("");
-
-  const [
-    verificationState,
-    setVerificationState,
-  ] = useState<
-    | "idle"
-    | "loading"
-    | "eligible"
-    | "not-found"
-    | "error"
-  >("idle");
-
-  const [
-    verifiedProfile,
-    setVerifiedProfile,
-  ] = useState<{
-    title: string;
-    artist_title?: string;
-    featured_image?: string;
-    profileId?: string;
-  } | null>(null);
-
-  const [badgeClaimed, setBadgeClaimed] =
-    useState(false);
-
-    const [hasProfile, setHasProfile] = useState(false);
-
-  /*
-   * ------------------------------------------------
-   * LinkedIn login
-   * ------------------------------------------------
-   */
-
-  const handleLogin = () => {
-    window.location.href =
-      "/api/linkedin/login";
-  };
-
-  /*
-   * ------------------------------------------------
-   * Check the real LinkedIn session
-   * ------------------------------------------------
-   *
-   * This is the ONLY check used to decide whether
-   * "My Profile" or "Sign in with LinkedIn" appears.
-   */
-
+  // Fetch LinkedIn profile and selected NFT recipients
   useEffect(() => {
     let cancelled = false;
 
-    async function checkLinkedInSession() {
+    async function checkRecipients() {
+      setIsLoadingRecipients(true);
+      setRecipientError("");
+
       try {
-        const response = await fetch(
+        // 1. Fetch the LinkedIn profile
+        const profileResponse = await fetch(
           "/api/linkedin/profile",
           {
             method: "GET",
@@ -298,272 +223,122 @@ export default function Page() {
           }
         );
 
-        const data =
-          await response.json();
+        if (!profileResponse.ok) {
+          throw new Error("Failed to fetch LinkedIn profile.");
+        }
 
-        if (cancelled) {
+        const profileData: LinkedInProfileResponse =
+          await profileResponse.json();
+
+        if (cancelled) return;
+
+        // IMPORTANT: profileId is inside profile
+        const profileId = profileData.profile?.profileId;
+
+        const profileExists =
+          profileData.authenticated === true &&
+          profileData.hasProfile === true &&
+          Boolean(profileId);
+
+        setHasProfile(profileExists);
+        setIsLinkedInAuthenticated(
+          profileData.authenticated === true
+        );
+
+        // No valid LinkedIn profile: clear the recipient state
+        if (!profileExists || !profileId) {
+          setMatchedRecipients([]);
+          setHasSelectedRecipients(false);
           return;
         }
 
-        setHasProfile(
-          response.ok &&
-          data.authenticated === true && data.hasProfile === true
+        // 2. Fetch NFT selections
+        const selectionsResponse = await fetch(
+          "/api/nft-selections",
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+          }
         );
 
-        setIsLinkedInAuthenticated(
-          response.ok &&
-            data.hasProfile === true
+        if (!selectionsResponse.ok) {
+          throw new Error("Failed to fetch NFT selections.");
+        }
+
+        const selectionsData: NFTSelectionsResponse =
+          await selectionsResponse.json();
+
+        if (cancelled) return;
+
+        // 3. Normalize the API response to an array
+        const selections: NFTSelection[] = Array.isArray(
+          selectionsData.selections
+        )
+          ? selectionsData.selections
+          : selectionsData.selections
+            ? [selectionsData.selections]
+            : [];
+
+        // 4. Match the logged-in profile and selected recipients
+        const recipients = selections.filter(
+          (selection) =>
+            selection.profileId === profileId &&
+            selection.recipientSelected === true
+        );
+
+        // 5. Save the results in React state
+        setMatchedRecipients(recipients);
+        setHasSelectedRecipients(recipients.length > 0);
+
+        // Debugging
+        console.log("LinkedIn profile ID:", profileId);
+        console.log("Matched recipients:", recipients);
+        console.log(
+          "Has selected recipients:",
+          recipients.length > 0
         );
       } catch (error) {
-        console.error(
-          "LinkedIn authentication check failed:",
-          error
-        );
-
         if (!cancelled) {
-          setIsLinkedInAuthenticated(
-            false
+          console.error("Recipient check failed:", error);
+
+          setMatchedRecipients([]);
+          setHasSelectedRecipients(false);
+          setRecipientError(
+            "We couldn't check your recipient status. Please try again."
           );
         }
       } finally {
         if (!cancelled) {
+          setIsLoadingRecipients(false);
           setAuthChecked(true);
         }
       }
     }
 
-    checkLinkedInSession();
+    checkRecipients();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  /*
-   * ------------------------------------------------
-   * Existing Powerlist verification flow
-   * ------------------------------------------------
-   *
-   * Kept here because your existing HeroSection/
-   * badge flow may still use this state.
-   *
-   * It does NOT control LinkedIn authentication.
-   */
+  // Make Ticket button handler
+  // Connect this handler to your actual ticket-minting API or flow.
+  const handleMakeTicket = (recipient: NFTSelection) => {
+    console.log("Make Ticket clicked for recipient:", recipient);
 
-  async function verifyProfile(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    setVerificationState(
-      "loading"
-    );
-
-    try {
-      const response = await fetch(
-        `/api/powerlist?linkedin=${encodeURIComponent(
-          linkedinUrl
-        )}`
-      );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error
-        );
-      }
-
-      setVerifiedProfile(
-        result.profile
-      );
-
-      setBadgeClaimed(false);
-
-      setVerificationState(
-        result.eligible
-          ? "eligible"
-          : "not-found"
-      );
-
-      if (result.eligible) {
-        setBadgeClaimed(true);
-      }
-    } catch {
-      setVerificationState(
-        "error"
-      );
-    }
-  }
-
- 
-
-useEffect(() => {
-  async function checkProfile() {
-    try {
-      const response = await fetch("/api/linkedin/profile", {
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      
-      const data = await response.json();
-
-      setIsLinkedInAuthenticated(data.authenticated === true);
-      setHasProfile(
-        data.authenticated === true &&
-        data.hasProfile === true
-      );
-    } catch {
-      setIsLinkedInAuthenticated(false);
-      setHasProfile(false);
-    } finally {
-      setAuthChecked(true);
-    }
-  }
-
-  checkProfile();
-}, []);
-
-
-
-
-
-useEffect(() => {
-  interface Selection {
-    _id: string;
-    profileId: string;
-    recipientSelected: boolean;
-    name: string;
-    jobTitle?: string;
-    imageUrl?: string;
-    [key: string]: any;
-  }
-
-  let cancelled = false;
-
-  async function claimtcket5() {
-    setIsLoadingRecipients(true);
-    //setMatchedRecipients(recipients);
-
-    try {
-      // 1. Fetch LinkedIn profile
-      const response1 = await fetch("/api/linkedin/profile", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      if (!response1.ok) {
-        throw new Error("Failed to fetch LinkedIn profile");
-      }
-
-      const data1 = await response1.json();
-
-      if (cancelled) return;
-
-      // 2. Check whether a LinkedIn profile exists
-      const profileId: string | undefined =
-        data1.profile?.profileId;
-
-      setHasProfile(
-        data1.authenticated === true &&
-        data1.hasProfile === true &&
-        Boolean(profileId)
-      );
-
-      // No profile: clear recipients and stop
-      if (
-        data1.authenticated !== true ||
-        data1.hasProfile !== true ||
-        !profileId
-      ) {
-        setMatchedRecipients([]);
-        return;
-      }
-
-      
-
-      // 3. Fetch NFT selections
-      const response2 = await fetch("/api/nft-selections", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      if (!response2.ok) {
-        throw new Error("Failed to fetch NFT selections");
-      }
-
-      const data2 = await response2.json();
-
-      if (cancelled) return;
-
-      // 4. Normalize selections into an array
-      const selections: Selection[] = Array.isArray(data2.selections)
-        ? data2.selections
-        : data2.selections
-          ? [data2.selections]
-          : [];
-
-      // 5. Match the profile and selected recipients
-      const recipients = selections.filter(
-        (selection) =>
-          selection.profileId === profileId &&
-          selection.recipientSelected === true
-      );
-
-      // 6. Save matching recipients in React state
-     // setMatchedRecipients(recipients);
-
-      // 7. Log results for debugging
-      console.log("LinkedIn profileId:", profileId);
-      console.log("Matched recipients:", recipients);
-      console.log(
-        "Has selected recipients:",
-        recipients.length > 0
-      );
-      if(recipients.length > 0){
-        const dude55 = "dude its working"
-        console.log(dude55)
-        setHasSelectedRecipients(true)
-      }
-    } catch (error) {
-      if (!cancelled) {
-        console.error("Error fetching profile or selections:", error);
-        setMatchedRecipients([]);
-      }
-    } finally {
-      if (!cancelled) {
-        setIsLoadingRecipients(false);
-      }
-    }
-  }
-
-  claimtcket5();
-
-  return () => {
-    cancelled = true;
+    // TODO: Call your ticket creation/minting endpoint here.
+    // The ticket API endpoint and required payload were not provided.
   };
-}, []);
-
-
-
-
-
-const router = useRouter();
 
   return (
     <>
       <PageStyle />
 
       <main className="min-h-screen overflow-hidden bg-[#f7f8fa] text-[#10253f]">
-
         {/* HEADER */}
-
         <header className="relative z-20 mx-auto flex max-w-[1280px] items-center justify-between px-6 py-6 lg:px-10">
-
           <a
             href="#top"
             className="flex items-center gap-3"
@@ -605,89 +380,73 @@ const router = useRouter();
           </nav>
 
           <div className="flex items-center gap-3">
-
             {/* DESKTOP AUTH BUTTON */}
-
             {!authChecked ? (
-  <div
-    className="hidden h-10 w-36 rounded-full bg-transparent md:block"
-    aria-hidden="true"
-  />
-) : isLinkedInAuthenticated && !hasProfile ? (
-  <button
-    type="button"
-    onClick={() => router.push("/?claim=true")}
-    className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
-  >
-    Claim Your Powerlist Profile
-  </button>
-) : isLinkedInAuthenticated && hasProfile ? (
-  <div className="flex items-center gap-2">
-    <a
-      href="/profile"
-      className="hidden rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:block"
-    >
-      My Profile
-    </a>
+              <div
+                className="hidden h-10 w-36 rounded-full bg-transparent md:block"
+                aria-hidden="true"
+              />
+            ) : isLinkedInAuthenticated && !hasProfile ? (
+              <button
+                type="button"
+                onClick={() => router.push("/?claim=true")}
+                className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
+              >
+                Claim Your Powerlist Profile
+              </button>
+            ) : isLinkedInAuthenticated && hasProfile ? (
+              <div className="flex items-center gap-2">
+                <a
+                  href="/profile"
+                  className="hidden rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:block"
+                >
+                  My Profile
+                </a>
 
-    <button
-      type="button"
-      onClick={
-        walletAddress
-          ? copyAddress
-          : connectCoreWallet
-      }
-      className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
-      aria-label={
-        walletAddress
-          ? "Copy wallet address"
-          : "Connect Core Wallet"
-      }
-    >
-      <span
-        className={`size-2 rounded-full ${
-          walletAddress
-            ? "bg-[#45c87a]"
-            : "bg-gray-400"
-        }`}
-      />
+                <button
+                  type="button"
+                  onClick={walletAddress ? copyAddress : connectCoreWallet}
+                  className="hidden items-center gap-2 rounded-full border border-[#dfe5eb] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm md:flex"
+                  aria-label={
+                    walletAddress
+                      ? "Copy wallet address"
+                      : "Connect Core Wallet"
+                  }
+                >
+                  <span
+                    className={`size-2 rounded-full ${
+                      walletAddress ? "bg-[#45c87a]" : "bg-gray-400"
+                    }`}
+                  />
 
-      {walletAddress
-        ? isCopied
-          ? "Copied"
-          : `${walletAddress.slice(
-              0,
-              6
-            )}...${walletAddress.slice(-4)}`
-        : "Connect Core Wallet"}
+                  {walletAddress
+                    ? isCopied
+                      ? "Copied"
+                      : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                    : "Connect Core Wallet"}
 
-      {walletAddress &&
-        (isCopied ? (
-          <Check className="size-4 text-[#45c87a]" />
-        ) : (
-          <Copy className="size-4 text-[#8a9bab]" />
-        ))}
-    </button>
-  </div>
-) : (
-  <button
-    type="button"
-    onClick={handleLogin}
-    className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
-  >
-    Sign in with LinkedIn
-  </button>
-)}
+                  {walletAddress &&
+                    (isCopied ? (
+                      <Check className="size-4 text-[#45c87a]" />
+                    ) : (
+                      <Copy className="size-4 text-[#8a9bab]" />
+                    ))}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogin}
+                className="hidden rounded-full bg-[#1e63f1] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(30,99,241,0.2)] transition hover:bg-[#1555d5] md:block"
+              >
+                Sign in with LinkedIn
+              </button>
+            )}
 
             {/* MOBILE MENU BUTTON */}
-
             <button
               type="button"
-              onClick={() =>
-                setIsMenuOpen(
-                  !isMenuOpen
-                )
-              }
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="rounded-full border border-[#dfe5eb] bg-white p-2.5 md:hidden"
               aria-label="Toggle menu"
             >
@@ -697,55 +456,42 @@ const router = useRouter();
                 <Menu className="size-5" />
               )}
             </button>
-
           </div>
         </header>
 
         {/* MOBILE MENU */}
-
         {isMenuOpen && (
           <div className="absolute right-6 top-20 z-30 flex w-72 flex-col gap-4 rounded-2xl border border-[#dfe5eb] bg-white p-5 text-sm font-semibold shadow-xl md:hidden">
-
             <a
               href="#about"
-              onClick={() =>
-                setIsMenuOpen(false)
-              }
+              onClick={() => setIsMenuOpen(false)}
             >
               About the Powerlist
             </a>
 
             <a
               href="#how-it-works"
-              onClick={() =>
-                setIsMenuOpen(false)
-              }
+              onClick={() => setIsMenuOpen(false)}
             >
               How it works
             </a>
 
             <a
               href="#faq"
-              onClick={() =>
-                setIsMenuOpen(false)
-              }
+              onClick={() => setIsMenuOpen(false)}
             >
               FAQ
             </a>
 
             <div className="border-t border-[#e5e9ee] pt-4">
-
               {!authChecked ? (
                 <div className="h-10" />
               ) : isLinkedInAuthenticated ? (
                 <div className="flex flex-col gap-3">
-
                   <a
                     href="/profile"
                     className="rounded-full border border-[#dfe5eb] bg-white px-4 py-3 text-center text-sm font-semibold"
-                    onClick={() =>
-                      setIsMenuOpen(false)
-                    }
+                    onClick={() => setIsMenuOpen(false)}
                   >
                     My Profile
                   </a>
@@ -763,31 +509,16 @@ const router = useRouter();
                   >
                     <span
                       className={`size-2 rounded-full ${
-                        walletAddress
-                          ? "bg-[#45c87a]"
-                          : "bg-gray-400"
+                        walletAddress ? "bg-[#45c87a]" : "bg-gray-400"
                       }`}
                     />
 
                     {walletAddress
                       ? isCopied
                         ? "Copied"
-                        : `${walletAddress.slice(
-                            0,
-                            6
-                          )}...${walletAddress.slice(
-                            -4
-                          )}`
+                        : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
                       : "Connect Core Wallet"}
-
-                    {walletAddress &&
-                      (isCopied ? (
-                        <Check className="size-4 text-[#45c87a]" />
-                      ) : (
-                        <Copy className="size-4 text-[#8a9bab]" />
-                      ))}
                   </button>
-
                 </div>
               ) : (
                 <button
@@ -801,30 +532,31 @@ const router = useRouter();
                   Sign in with LinkedIn
                 </button>
               )}
-
             </div>
           </div>
         )}
 
-        {/* HERO */}
+        {walletError && (
+          <div
+            role="alert"
+            className="mx-auto max-w-[1280px] px-6 text-sm text-red-600 lg:px-10"
+          >
+            {walletError}
+          </div>
+        )}
 
+        {/* HERO */}
         <HeroSection
-          verifiedProfile={{
-            title: "Jane Doe",
-          }}
-          onClaimTicket={() =>
-            setIsSignInOpen(true)
-          }
+          verifiedProfile={{ title: "Jane Doe" }}
+          onClaimTicket={() => setIsSignInOpen(true)}
         />
 
         {/* ABOUT */}
-
         <section
           id="about"
           className="border-y border-[#e4e9ee] bg-white"
         >
           <div className="mx-auto grid max-w-[1280px] gap-10 px-6 py-16 lg:grid-cols-[.8fr_1.2fr] lg:px-10 lg:py-24">
-
             <div>
               <p className="text-xs font-bold uppercase tracking-[.18em] text-[#1e63f1]">
                 A new kind of recognition
@@ -861,7 +593,6 @@ const router = useRouter();
         </section>
 
         {/* HOW IT WORKS */}
-
         <section
           id="how-it-works"
           className="mx-auto flex max-w-[1280px] flex-col gap-8 px-6 py-16 lg:flex-row lg:items-center lg:justify-between lg:px-10 lg:py-24"
@@ -881,242 +612,256 @@ const router = useRouter();
             <BriefcaseBusiness className="size-7 shrink-0 text-[#0a66c2]" />
 
             <p className="text-sm leading-6 text-[#627487]">
-              We use your LinkedIn profile
-              only to verify your place in
+              We use your LinkedIn profile only to verify your place in
               the Powerlist community.
             </p>
           </div>
         </section>
 
         {/* FOOTER */}
-
         <footer
           id="admin"
           className="border-t border-[#e4e9ee] bg-[#10253f] text-white"
         >
           <div className="mx-auto flex max-w-[1280px] flex-col gap-7 px-6 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-10">
-
             <div>
-              <p className="font-bold">
-                innovate finance
-              </p>
+              <p className="font-bold">innovate finance</p>
 
               <p className="mt-2 text-sm text-[#9baebe]">
-                Women in FinTech Powerlist
-                2026
+                Women in FinTech Powerlist 2026
               </p>
             </div>
 
             <div className="flex gap-6 text-sm text-[#b7c4d0]">
-
-              <a
-                href="#about"
-                className="hover:text-white"
-              >
+              <a href="#about" className="hover:text-white">
                 About
               </a>
 
-              <a
-                href="#how-it-works"
-                className="hover:text-white"
-              >
+              <a href="#how-it-works" className="hover:text-white">
                 How it works
               </a>
 
-              <a
-                href="/login2"
-                className="hover:text-white"
-              >
+              <a href="/login2" className="hover:text-white">
                 Admin
               </a>
-
             </div>
           </div>
         </footer>
 
         {/* BADGE */}
+        {badgeClaimed && verifiedProfile && (
+          <section
+            className="fixed bottom-6 right-6 z-40 w-[min(360px,calc(100vw-3rem))] overflow-hidden rounded-3xl border border-[#dfe5eb] bg-white shadow-2xl"
+            aria-label="Your Powerlist badge"
+          >
+            <div className="h-2 bg-[#1e63f1]" />
 
-        {badgeClaimed &&
-          verifiedProfile && (
-            <section
-              className="fixed bottom-6 right-6 z-40 w-[min(360px,calc(100vw-3rem))] overflow-hidden rounded-3xl border border-[#dfe5eb] bg-white shadow-2xl"
-              aria-label="Your Powerlist badge"
+            <div className="flex gap-4 p-5">
+              <img
+                src={verifiedProfile.featured_image || "/placeholder.jpg"}
+                alt=""
+                className="size-20 rounded-2xl object-cover"
+              />
+
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#1e63f1]">
+                  Badge created
+                </p>
+
+                <h2 className="mt-1 truncate text-lg font-bold text-[#10253f]">
+                  {verifiedProfile.title}
+                </h2>
+
+                <p className="mt-1 text-xs text-[#718294]">
+                  Women in FinTech Powerlist 2026
+                </p>
+
+                <p className="mt-3 inline-flex rounded-full bg-[#effcf4] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] text-[#176b3a]">
+                  Avalanche · 1 of 1
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* SIGN-IN / RECIPIENT MODAL */}
+        {isSignInOpen && (
+          <div
+            className="fixed inset-0 z-50 grid place-items-center bg-[#10253f]/45 p-6 backdrop-blur-sm"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setIsSignInOpen(false);
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="signin-title"
+              className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-8 shadow-2xl"
             >
-              <div className="h-2 bg-[#1e63f1]" />
+              <button
+                type="button"
+                onClick={() => setIsSignInOpen(false)}
+                className="absolute right-5 top-5 rounded-full p-2 text-[#8a9bab] hover:bg-[#f2f5f8]"
+                aria-label="Close"
+              >
+                <X className="size-5" />
+              </button>
 
-              <div className="flex gap-4 p-5">
+              {/* 1. Loading state */}
+              {isLoadingRecipients ? (
+                <div className="py-8 text-center">
+                  <div
+                    className="mx-auto size-10 animate-spin rounded-full border-4 border-[#dce9ff] border-t-[#1e63f1]"
+                    aria-label="Loading"
+                  />
 
-                <img
-                  src={
-                    verifiedProfile.featured_image ||
-                    "/placeholder.jpg"
-                  }
-                  alt=""
-                  className="size-20 rounded-2xl object-cover"
-                />
-
-                <div className="min-w-0">
-
-                  <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#1e63f1]">
-                    Badge created
-                  </p>
-
-                  <h2 className="mt-1 truncate text-lg font-bold text-[#10253f]">
-                    {verifiedProfile.title}
+                  <h2
+                    id="signin-title"
+                    className="mt-6 text-2xl font-semibold tracking-[-.05em]"
+                  >
+                    Checking your profile...
                   </h2>
 
-                  <p className="mt-1 text-xs text-[#718294]">
-                    Women in FinTech
-                    Powerlist 2026
+                  <p className="mt-3 text-sm leading-6 text-[#718294]">
+                    Please wait while we check your Powerlist eligibility.
                   </p>
-
-                  <p className="mt-3 inline-flex rounded-full bg-[#effcf4] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] text-[#176b3a]">
-                    Avalanche · 1 of 1
-                  </p>
-
                 </div>
-              </div>
-            </section>
-          )}
+              ) : recipientError ? (
+                /* 2. Error state */
+                <div className="py-4">
+                  <h2
+                    id="signin-title"
+                    className="mt-4 text-2xl font-semibold tracking-[-.05em]"
+                  >
+                    Unable to check your profile
+                  </h2>
 
-        {/* SIGN-IN MODAL */}
+                  <p className="mt-3 text-sm leading-6 text-[#718294]">
+                    {recipientError}
+                  </p>
 
-        
-{isSignInOpen && (
-  <div
-    className="fixed inset-0 z-50 grid place-items-center bg-[#10253f]/45 p-6 backdrop-blur-sm"
-    onMouseDown={(event) => {
-      if (event.target === event.currentTarget) {
-        setIsSignInOpen(false);
-      }
-    }}
-  >
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="signin-title"
-      className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
-    >
-      <button
-        type="button"
-        onClick={() => setIsSignInOpen(false)}
-        className="absolute right-5 top-5 rounded-full p-2 text-[#8a9bab] hover:bg-[#f2f5f8]"
-        aria-label="Close"
-      >
-        <X className="size-5" />
-      </button>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="mt-7 w-full rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : !hasProfile ? (
+                /* 3. LinkedIn sign-in */
+                <>
+                  <div className="grid size-14 place-items-center rounded-2xl bg-[#eaf3ff] text-[#0a66c2]">
+                    <BriefcaseBusiness className="size-7" />
+                  </div>
 
-      {!hasProfile ? (
-        <>
-          <div className="grid size-14 place-items-center rounded-2xl bg-[#eaf3ff] text-[#0a66c2]">
-            <BriefcaseBusiness className="size-7" />
+                  <h2
+                    id="signin-title"
+                    className="mt-7 text-3xl font-semibold tracking-[-.05em]"
+                  >
+                    Sign in with LinkedIn
+                  </h2>
+
+                  <p className="mt-3 text-sm leading-6 text-[#718294]">
+                    Sign in with LinkedIn to verify your Powerlist profile.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleLogin}
+                    className="mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
+                  >
+                    <BriefcaseBusiness className="size-5" />
+                    Continue with LinkedIn
+                  </button>
+                </>
+              ) : !hasSelectedRecipients ? (
+                /* 4. Profile exists but is not selected */
+                <>
+                  <h2
+                    id="signin-title"
+                    className="mt-4 text-3xl font-semibold tracking-[-.05em]"
+                  >
+                    Sorry, you didn't make the list
+                  </h2>
+
+                  <p className="mt-3 text-sm leading-6 text-[#718294]">
+                    Unfortunately, your profile isn't among the selected
+                    recipients for this Powerlist. Thanks for checking!
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsSignInOpen(false)}
+                    className="mt-7 w-full rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
+                  >
+                    Close
+                  </button>
+                </>
+              ) : (
+                /* 5. Matched recipients */
+                <>
+                  <h2
+                    id="signin-title"
+                    className="mt-4 text-3xl font-semibold tracking-[-.05em]"
+                  >
+                    Congratulations!
+                  </h2>
+
+                  <p className="mt-3 text-sm leading-6 text-[#718294]">
+                    You've made the list! Here's your NFT.
+                  </p>
+
+                  <div className="mt-6 space-y-4">
+                    {matchedRecipients.map((recipient) => (
+                      <article
+                        key={recipient._id}
+                        className="rounded-2xl border border-[#dfe5eb] bg-white p-4"
+                      >
+                        <div className="flex items-center gap-4">
+                          {recipient.imageUrl ? (
+                            <img
+                              src={recipient.imageUrl}
+                              alt={recipient.name}
+                              className="size-20 shrink-0 rounded-xl object-cover"
+                            />
+                          ) : (
+                            <div className="grid size-20 shrink-0 place-items-center rounded-xl bg-[#eaf3ff] text-[#0a66c2]">
+                              <BriefcaseBusiness className="size-7" />
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-[#10253f]">
+                              {recipient.name}
+                            </h3>
+
+                            {recipient.jobTitle && (
+                              <p className="mt-1 text-sm leading-5 text-[#718294]">
+                                {recipient.jobTitle}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleMakeTicket(recipient)}
+                          className="mt-4 w-full rounded-full bg-[#1e63f1] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#1555d5]"
+                        >
+                          Make Ticket
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-
-          <h2
-            id="signin-title"
-            className="mt-7 text-3xl font-semibold tracking-[-.05em]"
-          >
-            Sign in with LinkedIn
-          </h2>
-
-          <p className="mt-3 text-sm leading-6 text-[#718294]">
-            Sign in with LinkedIn to verify your Powerlist profile.
-          </p>
-
-          <button
-            type="button"
-            onClick={handleLogin}
-            className="mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
-          >
-            <BriefcaseBusiness className="size-5" />
-            Continue with LinkedIn
-          </button>
-        </>
-      ) : hasSelectedRecipients === false ? (
-        <>
-          <h2
-            id="signin-title"
-            className="mt-4 text-3xl font-semibold tracking-[-.05em]"
-          >
-            Sorry, you didn't make the list
-          </h2>
-
-          <p className="mt-3 text-sm leading-6 text-[#718294]">
-            Unfortunately, your profile isn't among the selected recipients
-            for this Powerlist. Thanks for checking!
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setIsSignInOpen(false)}
-            className="mt-7 w-full rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
-          >
-            Close
-          </button>
-        </>
-      ) : (
-       
-<>
-  <h2
-    id="signin-title"
-    className="mt-4 text-3xl font-semibold tracking-[-.05em]"
-  >
-    Congratulations!
-  </h2>
-
-  <p className="mt-3 text-sm leading-6 text-[#718294]">
-    You've made the list! Here's your NFT.
-  </p>
-
-  {matchedRecipients.map((recipient) => (
-    <div
-      key={recipient._id}
-      className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5"
-    >
-      {/* Recipient image */}
-      {recipient.imageUrl && (
-        <img
-          src={recipient.imageUrl}
-          alt={recipient.name}
-          className="mx-auto size-40 rounded-xl object-cover"
-        />
-      )}
-
-      {/* Recipient details */}
-      <h3 className="mt-4 text-center text-xl font-semibold text-[#10253f]">
-        {recipient.name}
-      </h3>
-
-      {recipient.jobTitle && (
-        <p className="mt-2 text-center text-sm text-[#718294]">
-          {recipient.jobTitle}
-        </p>
-      )}
-
-      {/* Make Ticket button */}
-      <button
-        type="button"
-        onClick={() => handleMakeTicket(recipient)}
-        className="mt-6 w-full rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
-      >
-        Make Ticket
-      </button>
-    </div>
-  ))}
-</>
-
-      )}
-      
-
-      
-    </div>
-  </div>
-)}
-
-
+        )}
       </main>
-
-      {/* CLAIM OVERLAY */}
 
       <ClaimOverlay />
     </>
