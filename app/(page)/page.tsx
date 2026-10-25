@@ -524,6 +524,10 @@ useEffect(() => {
         "Has selected recipients:",
         recipients.length > 0
       );
+      if(recipients.length > 0){
+        const dude55 = "dude its working"
+        console.log(dude55)
+      }
     } catch (error) {
       if (!cancelled) {
         console.error("Error fetching profile or selections:", error);
