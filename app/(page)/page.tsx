@@ -360,7 +360,7 @@ export default function Page() {
     });
 
     try {
-      const response = await fetch("/api/preview-ticket", {
+      const response = await fetch("/api/preview-ticket3", {
         method: "POST",
         credentials: "include",
         headers: {
