@@ -65,6 +65,19 @@ export default async function AdminDashboardPage() {
           </p>
         </Link>
       </section>
+       <section className="mt-10 grid gap-6 sm:grid-cols-2">
+        <Link
+          href="/admin/nftrecipient"
+          className="rounded-xl border bg-white p-6 shadow-sm hover:shadow-md"
+        >
+          <h2 className="text-xl font-semibold">Edit NFT Recipients</h2>
+          <p className="mt-2 text-gray-600">
+            View and manage your tickets.
+          </p>
+        </Link>
+      </section>
+      
+
     </main>
   );
 }

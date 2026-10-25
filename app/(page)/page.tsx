@@ -222,6 +222,7 @@ export default function Page() {
 
   const [isSignInOpen, setIsSignInOpen] =
     useState(false);
+  
 
   /*
    * ------------------------------------------------
@@ -847,7 +848,7 @@ const router = useRouter();
 
         {/* SIGN-IN MODAL */}
 
-        {isSignInOpen && (
+        {isSignInOpen && hasProfile ? (
           <div
             className="fixed inset-0 z-50 grid place-items-center bg-[#10253f]/45 p-6 backdrop-blur-sm"
             onMouseDown={(event) => {
@@ -885,7 +886,7 @@ const router = useRouter();
                 id="signin-title"
                 className="mt-7 text-3xl font-semibold tracking-[-.05em]"
               >
-                Verify your place.
+               this worked
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-[#718294]">
@@ -904,7 +905,61 @@ const router = useRouter();
 
             </div>
           </div>
-        )}
+        ): isSignInOpen && (<div
+          className="fixed inset-0 z-50 grid place-items-center bg-[#10253f]/45 p-6 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setIsSignInOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="signin-title"
+            className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
+          >
+
+            <button
+              type="button"
+              onClick={() =>
+                setIsSignInOpen(false)
+              }
+              className="absolute right-5 top-5 rounded-full p-2 text-[#8a9bab] hover:bg-[#f2f5f8]"
+              aria-label="Close"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="grid size-14 place-items-center rounded-2xl bg-[#eaf3ff] text-[#0a66c2]">
+              <BriefcaseBusiness className="size-7" />
+            </div>
+
+            <h2
+              id="signin-title"
+              className="mt-7 text-3xl font-semibold tracking-[-.05em]"
+            >
+your mum            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-[#718294]">
+              Sign in with LinkedIn to
+              verify your Powerlist profile.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleLogin}
+              className="mt-7 flex w-full items-center justify-center gap-3 rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
+            >
+              <BriefcaseBusiness className="size-5" />
+              Continue with LinkedIn
+            </button>
+
+          </div>
+        </div>)}
 
       </main>
 
