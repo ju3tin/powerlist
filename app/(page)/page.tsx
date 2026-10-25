@@ -449,6 +449,8 @@ useEffect(() => {
 
       const data1 = await response1.json();
 
+      console.log(data1 + "this is one")
+
       // 2. Fetch NFT selections
       const response2 = await fetch("/api/nft-selections", {
         method: "GET",
@@ -462,6 +464,7 @@ useEffect(() => {
 
       const data2 = await response2.json();
 
+      console.log(data2 + "this is two")
       // 3. Get the selections array
       const selections: Selection[] = Array.isArray(data2.selections)
         ? data2.selections
