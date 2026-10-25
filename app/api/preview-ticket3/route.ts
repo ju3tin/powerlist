@@ -1,5 +1,5 @@
 
-import { generateTicketImage } from "@/lib/generateTicketImage2";
+import { generateTicketImage } from "@/lib/generateTicketImage4";
 import { getTicketConfig } from "@/lib/getTicketConfig";
 import type { TicketConfig } from "@/lib/ticketTypes";
 import { NextRequest, NextResponse } from "next/server";
