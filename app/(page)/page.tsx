@@ -252,6 +252,7 @@ export default function Page() {
     title: string;
     artist_title?: string;
     featured_image?: string;
+    profileId?: string;
   } | null>(null);
 
   const [badgeClaimed, setBadgeClaimed] =
