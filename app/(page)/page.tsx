@@ -419,6 +419,38 @@ useEffect(() => {
   checkProfile();
 }, []);
 
+useEffect(() => {
+async function claimtcket5() {
+  try{
+    const response = await fetch("/api/nft-selections",{
+
+    });
+    const data = await response.json();
+    if (data.selections.recipientSelected === true) {
+      console.log(data.selections);
+    }
+   // console.log(data.selections)
+   interface Selection {
+    recipientSelected: boolean;
+    name: string;
+    [key: string]: any;
+  }
+  
+
+  const selectedRecipients = data.selections.filter(
+    (selection: Selection) => selection.recipientSelected === true
+  );
+  
+  console.log(selectedRecipients);
+    
+//    console.log(selectedRecipients)
+  } catch {
+    console.log('this is not working');
+  }
+}
+claimtcket5();
+}, []);
+
 const router = useRouter();
 
   return (
