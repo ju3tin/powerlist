@@ -433,7 +433,7 @@ async function claimtcket5() {
     );
 
     const data1 = await response1.json();
-    console.log(data1 + "this is my data")
+  
     const response = await fetch("/api/nft-selections",{
 
     });
@@ -441,6 +441,7 @@ async function claimtcket5() {
     if (data.selections.recipientSelected === true) {
       console.log(data.selections);
     }
+    console.log(data1 + "this is my data")
    // console.log(data.selections)
    interface Selection {
     recipientSelected: boolean;
