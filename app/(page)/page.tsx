@@ -18,6 +18,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { profile } from "console";
 
 type CoreProvider = {
   request: (args: {
@@ -420,49 +421,77 @@ useEffect(() => {
   checkProfile();
 }, []);
 
+
 useEffect(() => {
-async function claimtcket5() {
-  try{
-    const response1 = await fetch(
-      "/api/linkedin/profile",
-      {
+  interface Selection {
+    _id: string;
+    profileId: string;
+    recipientSelected: boolean;
+    name: string;
+    jobTitle?: string;
+    imageUrl?: string;
+    [key: string]: any;
+  }
+
+  async function claimtcket5() {
+    try {
+      // 1. Fetch LinkedIn profile
+      const response1 = await fetch("/api/linkedin/profile", {
         method: "GET",
         credentials: "include",
         cache: "no-store",
+      });
+
+      if (!response1.ok) {
+        throw new Error("Failed to fetch LinkedIn profile");
       }
-    );
 
-    const data1 = await response1.json();
-  
-    const response = await fetch("/api/nft-selections",{
+      const data1 = await response1.json();
 
-    });
-    const data = await response.json();
-    if (data.selections.recipientSelected === true) {
-      console.log(data.selections);
+      // 2. Fetch NFT selections
+      const response2 = await fetch("/api/nft-selections", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!response2.ok) {
+        throw new Error("Failed to fetch NFT selections");
+      }
+
+      const data2 = await response2.json();
+
+      // 3. Get the selections array
+      const selections: Selection[] = Array.isArray(data2.selections)
+        ? data2.selections
+        : data2.selections
+          ? [data2.selections]
+          : [];
+
+      // 4. Keep only selected recipients
+      const selectedRecipients = selections.filter(
+        (selection) => selection.recipientSelected === true
+      );
+
+      // 5. Match selections to the LinkedIn profile
+      // Adjust data1.profileId if your profile API uses a different field.
+      const matchedRecipients = selectedRecipients.filter(
+        (selection) => selection.profileId === data1.profileId
+      );
+
+      // 6. Log results
+      console.log("LinkedIn profile:", data1);
+      console.log("All selections:", selections);
+      console.log("Selected recipients:", selectedRecipients);
+      console.log("Matched recipients:", matchedRecipients);
+    } catch (error) {
+      console.error("Error fetching or matching data:", error);
     }
-    console.log(data1 + "this is my data")
-   // console.log(data.selections)
-   interface Selection {
-    recipientSelected: boolean;
-    name: string;
-    [key: string]: any;
   }
-  
 
-  const selectedRecipients = data.selections.filter(
-    (selection: Selection) => selection.recipientSelected === true
-  );
-  
-  console.log(selectedRecipients);
-    
-//    console.log(selectedRecipients)
-  } catch {
-    console.log('this is not working');
-  }
-}
-claimtcket5();
+  claimtcket5();
 }, []);
+
 
 const router = useRouter();
 
