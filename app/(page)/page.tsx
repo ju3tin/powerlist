@@ -527,6 +527,7 @@ useEffect(() => {
       if(recipients.length > 0){
         const dude55 = "dude its working"
         console.log(dude55)
+        setHasSelectedRecipients(true)
       }
     } catch (error) {
       if (!cancelled) {
