@@ -1055,24 +1055,56 @@ const router = useRouter();
           </button>
         </>
       ) : (
-        <>
-          <h2
-            id="signin-title"
-            className="mt-4 text-3xl font-semibold tracking-[-.05em]"
-          >
-            Congratulations!
-          </h2>
+       
+<>
+  <h2
+    id="signin-title"
+    className="mt-4 text-3xl font-semibold tracking-[-.05em]"
+  >
+    Congratulations!
+  </h2>
 
-          <p className="mt-3 text-sm leading-6 text-[#718294]">
-            You've made the list! Here's your NFT.
-          </p>
+  <p className="mt-3 text-sm leading-6 text-[#718294]">
+    You've made the list! Here's your NFT.
+  </p>
 
-          {matchedRecipients.map(() => (
-            <div className="mt-6">
-            {/*  <YourNFTComponent recipient={recipient} /> */}
-            </div>
-          ))}
-        </>
+  {matchedRecipients.map((recipient) => (
+    <div
+      key={recipient._id}
+      className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5"
+    >
+      {/* Recipient image */}
+      {recipient.imageUrl && (
+        <img
+          src={recipient.imageUrl}
+          alt={recipient.name}
+          className="mx-auto size-40 rounded-xl object-cover"
+        />
+      )}
+
+      {/* Recipient details */}
+      <h3 className="mt-4 text-center text-xl font-semibold text-[#10253f]">
+        {recipient.name}
+      </h3>
+
+      {recipient.jobTitle && (
+        <p className="mt-2 text-center text-sm text-[#718294]">
+          {recipient.jobTitle}
+        </p>
+      )}
+
+      {/* Make Ticket button */}
+      <button
+        type="button"
+        onClick={() => handleMakeTicket(recipient)}
+        className="mt-6 w-full rounded-full bg-[#0a66c2] px-5 py-4 text-sm font-bold text-white hover:bg-[#084f96]"
+      >
+        Make Ticket
+      </button>
+    </div>
+  ))}
+</>
+
       )}
       
 
