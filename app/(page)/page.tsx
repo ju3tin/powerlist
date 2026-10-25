@@ -219,7 +219,7 @@ export default function Page() {
    * UI state
    * ------------------------------------------------
    */
-
+  const [hasSelectedRecipients, setHasSelectedRecipients] = useState(false);
   const [isMenuOpen, setIsMenuOpen] =
     useState(false);
 
@@ -1031,7 +1031,7 @@ const router = useRouter();
             Continue with LinkedIn
           </button>
         </>
-      ) : matchedRecipients.length === 0 ? (
+      ) : !hasSelectedRecipients ? (
         <>
           <h2
             id="signin-title"
@@ -1073,6 +1073,9 @@ const router = useRouter();
           ))}
         </>
       )}
+      
+
+      
     </div>
   </div>
 )}
