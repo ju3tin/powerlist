@@ -1031,7 +1031,7 @@ const router = useRouter();
             Continue with LinkedIn
           </button>
         </>
-      ) : hasSelectedRecipients ? (
+      ) : hasSelectedRecipients === false ? (
         <>
           <h2
             id="signin-title"
