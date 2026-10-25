@@ -6,7 +6,11 @@ import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
+/**
+ * Cleans values that should be ignored.
+ */
 function clean(value?: string | null): string | undefined {
   if (value == null) return undefined;
 
@@ -26,36 +30,119 @@ function clean(value?: string | null): string | undefined {
 }
 
 /**
- * Converts remote WebP images to PNG data URLs.
- * Other image URLs are left unchanged.
+ * Downloads an image and converts it to a PNG data URL.
+ *
+ * Detects the actual image format from its bytes instead of
+ * relying on the file extension. Supports WebP and other formats
+ * supported by Sharp.
  */
 async function normalizeImageUrl(
   imageUrl?: string | null
 ): Promise<string | undefined> {
   const url = clean(imageUrl);
+
   if (!url) return undefined;
 
-  // Only convert WebP URLs. Query strings are supported.
-  if (!/\.webp(?:$|[?#])/i.test(url)) {
-    return url;
+  // Handle existing image data URLs.
+  if (url.startsWith("data:")) {
+    const match = url.match(
+      /^data:image\/[^;,]+;base64,([\s\S]+)$/
+    );
+
+    if (!match) {
+      throw new Error("Invalid image data URL");
+    }
+
+    const input = Buffer.from(match[1], "base64");
+
+    return await convertToPngDataUrl(input, "data URL");
   }
 
-  const response = await fetch(url);
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error(`Invalid image URL: ${url}`);
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    throw new Error("Image URL must use HTTP or HTTPS");
+  }
+
+  const response = await fetch(parsedUrl.toString(), {
+    headers: {
+      Accept: "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(20000),
+  });
 
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch WebP image (${response.status}): ${url}`
+      `Image download failed: HTTP ${response.status} ${response.statusText}`
     );
   }
 
+  const contentType = response.headers.get("content-type") ?? "";
   const input = Buffer.from(await response.arrayBuffer());
 
-  const png = await sharp(input).png().toBuffer();
-  const base64 = png.toString("base64");
+  if (input.length === 0) {
+    throw new Error("Downloaded image is empty");
+  }
 
-  return `data:image/png;base64,${base64}`;
+  console.log("[preview-ticket] Downloaded image:", {
+    contentType,
+    bytes: input.length,
+    url: parsedUrl.hostname,
+  });
+
+  return convertToPngDataUrl(input, contentType);
 }
 
+/**
+ * Validates the image and converts it to a PNG data URL.
+ */
+async function convertToPngDataUrl(
+  input: Buffer,
+  source: string
+): Promise<string> {
+  try {
+    const metadata = await sharp(input).metadata();
+
+    console.log("[preview-ticket] Image format detected:", {
+      source,
+      format: metadata.format,
+      width: metadata.width,
+      height: metadata.height,
+    });
+
+    const png = await sharp(input)
+      .rotate()
+      .png()
+      .toBuffer();
+
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch (error) {
+    console.error("[preview-ticket] Image conversion failed:", {
+      source,
+      bytes: input.length,
+      signature: input.subarray(0, 16).toString("hex"),
+      error:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    });
+
+    throw new Error(
+      `Unable to decode image (${source}). Check that the URL returns actual image bytes and that Sharp supports the image format.`
+    );
+  }
+}
+
+/**
+ * Generates the ticket.
+ */
 async function buildTicket(input: {
   name?: string | null;
   tokenId?: string | null;
@@ -74,15 +161,14 @@ async function buildTicket(input: {
       ? input.config
       : await getTicketConfig();
 
-  console.log(
-    "[preview-ticket] layers:",
-    config.layers?.length,
-    "size:",
-    config.width,
-    "x",
-    config.height
-  );
+  console.log("[preview-ticket] Ticket config:", {
+    layers: config.layers?.length,
+    width: config.width,
+    height: config.height,
+    showTopBar: config.showTopBar,
+  });
 
+  // Normalize the incoming profile photo and company logo.
   const imageUrl = await normalizeImageUrl(input.imageUrl);
   const companyLogo = await normalizeImageUrl(input.companyLogo);
 
@@ -99,6 +185,9 @@ async function buildTicket(input: {
   });
 }
 
+/**
+ * GET /api/preview-ticket
+ */
 export async function GET(req: NextRequest) {
   try {
     const sp = req.nextUrl.searchParams;
@@ -121,7 +210,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error("GET /api/preview-ticket", error);
+    console.error("GET /api/preview-ticket failed:", error);
 
     return NextResponse.json(
       {
@@ -135,6 +224,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * POST /api/preview-ticket
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -158,7 +250,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error("POST /api/preview-ticket", error);
+    console.error("POST /api/preview-ticket failed:", error);
 
     return NextResponse.json(
       {
