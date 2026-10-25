@@ -423,6 +423,7 @@ useEffect(() => {
 }, []);
 
 
+
 useEffect(() => {
   interface Selection {
     _id: string;
@@ -449,7 +450,13 @@ useEffect(() => {
 
       const data1 = await response1.json();
 
-      console.log(data1 + "this is one")
+      // Get profileId from the nested profile object
+      const profileId = data1.profile?.profileId;
+
+      if (!profileId) {
+        console.log("No LinkedIn profileId found");
+        return;
+      }
 
       // 2. Fetch NFT selections
       const response2 = await fetch("/api/nft-selections", {
@@ -464,30 +471,25 @@ useEffect(() => {
 
       const data2 = await response2.json();
 
-      console.log(data2 + "this is two")
-      // 3. Get the selections array
+      // 3. Ensure selections is an array
       const selections: Selection[] = Array.isArray(data2.selections)
         ? data2.selections
         : data2.selections
           ? [data2.selections]
           : [];
 
-      // 4. Keep only selected recipients
-      const selectedRecipients = selections.filter(
-        (selection) => selection.recipientSelected === true
+      // 4. Match profileId and recipientSelected === true
+      const matchedRecipients = selections.filter(
+        (selection) =>
+          selection.profileId === profileId &&
+          selection.recipientSelected === true
       );
 
-      // 5. Match selections to the LinkedIn profile
-      // Adjust data1.profileId if your profile API uses a different field.
-      const matchedRecipients = selectedRecipients.filter(
-        (selection) => selection.profileId === data1.profileId
-      );
-
-      // 6. Log results
-      console.log("LinkedIn profile:", data1);
+      // 5. Log results
+      console.log("LinkedIn profileId:", profileId);
       console.log("All selections:", selections);
-      console.log("Selected recipients:", selectedRecipients);
       console.log("Matched recipients:", matchedRecipients);
+
     } catch (error) {
       console.error("Error fetching or matching data:", error);
     }
@@ -495,6 +497,7 @@ useEffect(() => {
 
   claimtcket5();
 }, []);
+
 
 
 const router = useRouter();
