@@ -422,6 +422,13 @@ useEffect(() => {
 useEffect(() => {
 async function claimtcket5() {
   try{
+    const response1 = await fetch("/api/linkedin/profile", {
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    const data1 = await response1.json();
+    console.log(data1 + "this is my data")
     const response = await fetch("/api/nft-selections",{
 
     });
