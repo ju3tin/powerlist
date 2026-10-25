@@ -86,7 +86,7 @@ export async function GET() {
           id: profile.id,
           title: profile.title,
           slug: profile.slug,
-          profileid: profile._id,
+          profileId: profile._id,
           artist_title:
             profile.artist_title || "",
           featured_image:
