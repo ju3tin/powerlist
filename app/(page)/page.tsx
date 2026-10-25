@@ -489,6 +489,9 @@ useEffect(() => {
       console.log("LinkedIn profileId:", profileId);
       console.log("All selections:", selections);
       console.log("Matched recipients:", matchedRecipients);
+      const hasSelectedRecipients: boolean = matchedRecipients.length > 0;
+
+      console.log("Has selected recipients:", hasSelectedRecipients);
 
     } catch (error) {
       console.error("Error fetching or matching data:", error);
