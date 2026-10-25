@@ -401,6 +401,7 @@ useEffect(() => {
         cache: "no-store",
       });
 
+      
       const data = await response.json();
 
       setIsLinkedInAuthenticated(data.authenticated === true);
@@ -422,10 +423,14 @@ useEffect(() => {
 useEffect(() => {
 async function claimtcket5() {
   try{
-    const response1 = await fetch("/api/linkedin/profile", {
-      credentials: "include",
-      cache: "no-store",
-    });
+    const response1 = await fetch(
+      "/api/linkedin/profile",
+      {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
 
     const data1 = await response1.json();
     console.log(data1 + "this is my data")
